@@ -327,7 +327,7 @@ EOF
 
                 esac
       ;;
-    4)
+    3)
           clear
               read -p "⚠️ Are you sure you want to uninstall TrustTunnel and remove all files? (y/N): " confirm
           if [[ "$confirm" =~ ^[Yy]$ ]]; then
@@ -360,6 +360,12 @@ EOF
           fi
           read -p "Press Enter to return to main menu..."
           ;;
+
+
+    4)
+        exit 0 
+        break
+    ;;
     *)
       echo "❌ Invalid choice. Exiting."
       ;;
