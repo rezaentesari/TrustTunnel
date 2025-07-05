@@ -299,7 +299,7 @@ EOF
           break
         ;;
 
-      3)
+      4)
         clear
              read -p "Enter client name to view logs (e.g., c1): " log_name
               log_service="trusttunnel-$log_name"
@@ -313,7 +313,7 @@ EOF
               fi
               break
       ;;
-      4)
+      5)
         break
         ;;
       *)
