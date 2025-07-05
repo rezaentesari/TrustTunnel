@@ -20,21 +20,34 @@ set -e
 sudo apt update
 sudo apt install -y build-essential curl pkg-config libssl-dev git figlet certbot
 
-# Check and install Rust (only if not already installed)
-if ! command -v cargo >/dev/null 2>&1 || ! command -v rustc >/dev/null 2>&1; then
-  echo "🦀 Rust is not installed. Installing Rust..."
-
-  # Run the installer without silent flags for visibility
-  curl https://sh.rustup.rs -sSf | sh -s -- -y
-
-  # Export PATH to use Rust in current shell session
-  export PATH="$HOME/.cargo/bin:$PATH"
-
-  # Optional: show installed version
-  echo "✅ Rust installed: $(rustc --version)"
-else
-  echo "✅ Rust is already installed: $(rustc --version)"
+# If the Cargo environment file exists, source it to update the PATH
+if [ -f "$CARGO_ENV_FILE" ]; then
+  source "$CARGO_ENV_FILE"
 fi
+
+# Now, check if Rust is installed by looking for the 'rustc' command
+if command -v rustc >/dev/null 2>&1; then
+  # If 'rustc' is found, it means Rust is already installed
+  echo "✅ Rust از قبل نصب شده است: $(rustc --version)"
+else
+  # If 'rustc' is not found, start the installation process
+  echo "🦀 Rust نصب نشده است. در حال نصب..."
+
+  # Run the installer with the -y flag to automate the process
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+  # Source the environment file again to make Rust available in the current session
+  if [ -f "$CARGO_ENV_FILE" ]; then
+    source "$CARGO_ENV_FILE"
+  else
+    # A fallback in case the env file was not created
+    export PATH="$HOME/.cargo/bin:$PATH"
+  fi
+
+  # Display the installed version for confirmation
+  echo "✅ Rust با موفقیت نصب شد: $(rustc --version)"
+fi
+
 
 while true; do
   # Clear terminal and show logo
@@ -104,12 +117,13 @@ while true; do
             continue
           fi
           read -p "🌐 Please enter your domain pointed to this server (e.g., server.example.com): " domain
+          read -p "🌐 Please enter your email: " email
           cert_path="/etc/letsencrypt/live/$domain"
           if [ -d "$cert_path" ]; then
             echo "✅ SSL certificate for $domain already exists. Skipping Certbot."
           else
             echo "🔐 Requesting SSL certificate with Certbot..."
-            sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m your-email@example.com
+            sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"
           fi
 
 
