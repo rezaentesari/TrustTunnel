@@ -51,8 +51,8 @@ while true; do
   # Menu
   echo "Select an option:"
   echo -e "${MAGENTA}1) Install TrustTunnel${RESET}"
-  echo -e "${CYAN}2) Tunnel Management{$RESET}"
-  echo -e "${RED}3) Uninstall TrustTunnel${$RESET}"
+  echo -e "${CYAN}2) Tunnel Management${RESET}"
+  echo -e "${RED}3) Uninstall TrustTunnel${RESET}"
   echo "4) Exit"
   read -p "👉 Your choice: " choice
 
