@@ -35,9 +35,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/ma
 
 ## 💰 لینک حمایت مالی
 
-در صورت تمایل برای حمایت از پروژه، می‌توانید از طریق آدرس زیر (TRX - شبکه TRC-20) دونیت ارسال کنید:
-
-TXieH4AQLhF5b3WLGsHFQry8nqnsHy976F
-
+<a href="https://nowpayments.io/donation?api_key=HHZTHS8-YC9MEHG-HTC73AH-5WVP950" target="_blank" rel="noreferrer noopener">
+    <img src="https://nowpayments.io/images/embeds/donation-button-white.svg" alt="Cryptocurrency & Bitcoin donation button by NOWPayments">
+</a>
 
 🙏 از حمایت شما بسیار سپاسگزاریم!
