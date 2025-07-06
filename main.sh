@@ -354,19 +354,29 @@ EOF
         ;;
 
       4)
-        clear
-             read -p "Enter client name to view logs (e.g., c1): " log_name
-              log_service="trusttunnel-$log_name"
-              service_file="/etc/systemd/system/${log_service}.service"
+          clear
+          echo "🔍 در حال جستجوی سرویس‌هایی با پیشوند trusttunnel-..."
 
-              if [ -f "$service_file" ]; then
-                echo "📖 Showing last 15 lines of logs for $log_service. Press 'q' to return."
-                sudo journalctl -u "${log_service}.service" -n 15 --no-pager | less
-              else
-                echo "❌ Client '$log_name' not found."
-              fi
+          # لیست کردن تمام فایل‌های سرویس که با trusttunnel- شروع می‌شن
+          services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
+
+          if [ ${#services[@]} -eq 0 ]; then
+              echo "❌ هیچ سرویسی با پیشوند trusttunnel- پیدا نشد."
               break
-      ;;
+          fi
+
+          echo "📋 لطفاً یک سرویس را انتخاب کنید:"
+          select selected_service in "${services[@]}"; do
+              if [ -n "$selected_service" ]; then
+                  echo "📖 در حال نمایش آخرین 15 خط لاگ برای $selected_service. برای خروج 'q' را فشار دهید."
+                  sudo journalctl -u "$selected_service" -n 15 --no-pager | less
+                  break
+              else
+                  echo "⚠️ انتخاب نامعتبر. لطفاً یک عدد معتبر وارد کنید."
+              fi
+          done
+          break
+          ;;
       5)
         break
         ;;
