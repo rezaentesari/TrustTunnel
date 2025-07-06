@@ -23,8 +23,6 @@ https://t.me/Erfan_XRay
 
 ## Donation Link
 
-Donate TRX (TRC-20) to support our project:
-``` wallet
-TXieH4AQLhF5b3WLGsHFQry8nqnsHy976F
-```
-Thanks for your support! 
+<a href="https://nowpayments.io/donation?api_key=HHZTHS8-YC9MEHG-HTC73AH-5WVP950" target="_blank" rel="noreferrer noopener">
+    <img src="https://nowpayments.io/images/embeds/donation-button-white.svg" alt="Cryptocurrency & Bitcoin donation button by NOWPayments">
+</a>
