@@ -106,7 +106,7 @@ while true; do
   echo -e "${CYAN}2) Tunnel Management${RESET}"
   echo -e "${RED}3) Uninstall TrustTunnel${RESET}"
   echo "4) Exit"
-  read -p "👉 Your choice: " choice
+  read -p "${YELLOW}👉 Your choice: ${RESET}" choice
 
   case $choice in
     1)
@@ -131,7 +131,7 @@ while true; do
       draw_green_line
       echo "1) Iran Server"
       echo "2) Kharej Client"
-      read -p "👉 Your choice: " tunnel_choice
+      read -p "${YELLOW}👉 Your choice: ${RESET}" tunnel_choice
 
       case $tunnel_choice in
         1)
