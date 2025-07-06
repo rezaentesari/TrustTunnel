@@ -95,7 +95,7 @@ while true; do
   figlet -f slant "TrustTunnel"
   echo -e "${BOLD_GREEN}"
   echo -e "\033[1;33m=========================================================="
-  echo -e "Developed by ErfanXRay => https://t.me/Erfan_XRay"
+  echo -e "Developed by ErfanXRay => https://github.com/Erfan-XRay/TrustTunnel"
   echo -e "\033[0m${WHITE}Reverse tunnel over QUIC ( Based on rstun project)${WHITE}${RESET}"
   draw_green_line
   echo -e "${GREEN}|${RESET}              ${BOLD_GREEN}TrustTunnel Main Menu${RESET}                  ${GREEN}|${RESET}"
@@ -127,7 +127,8 @@ while true; do
     2)
       clear
       echo ""
-      echo "📡 Choose Tunnel Mode:"
+      echo -e "${GREEN}📡 Choose Tunnel Mode:${RESET}"
+      draw_green_line
       echo "1) Iran Server"
       echo "2) Kharej Client"
       read -p "👉 Your choice: " tunnel_choice
@@ -148,7 +149,7 @@ while true; do
             case $srv_choice in
               1)
 
-              
+              clear
 
 
           if [ ! -f "rstun/rstund" ]; then
@@ -230,6 +231,7 @@ EOF
 
           ;;
           2)
+           clear
           # Show service logs
                 service_file="/etc/systemd/system/trusttunnel.service"
                 if [ -f "$service_file" ]; then
@@ -242,6 +244,7 @@ EOF
                 break
           ;;
           3)
+           clear
           service_file="/etc/systemd/system/trusttunnel.service"
                 if [ -f "$service_file" ]; then
                   echo "🛑 Stopping and deleting trusttunnel.service..."
@@ -322,6 +325,7 @@ EOF
         sudo systemctl enable "$service_name"
         sudo systemctl start "$service_name"
         echo "✅ Client '$client_name' started as $service_name"
+        break;
         ;;
       2)
         clear
@@ -372,7 +376,7 @@ EOF
                   echo "🗑️ Removing service file..."
                   sudo rm -f "$service_file"
                   sudo systemctl daemon-reload
-                  echo "✅ Client '$selected_service' deleted.Press 'q' to quit."
+                  echo "✅ Client '$selected_service' deleted."
                   break
               else
                   echo "⚠️ Invalid selection. Please enter a valid number."
