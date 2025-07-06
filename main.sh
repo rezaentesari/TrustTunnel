@@ -18,7 +18,7 @@ set -e
 
 # Install required tools
 sudo apt update
-sudo apt install -y build-essential curl pkg-config libssl-dev git figlet certbot
+sudo apt install -y build-essential curl pkg-config libssl-dev git figlet certbot rustc cargo
 
 # Default path for the Cargo environment file.
 CARGO_ENV_FILE="$HOME/.cargo/env"
@@ -117,10 +117,11 @@ while true; do
         rm -rf rstun
       fi
       echo "📥 Installing TrustTunnel..."
-      git clone https://github.com/neevek/rstun.git
-      cd rstun
-      echo "🔨 Building project..."
-      cargo build --release
+      wget https://github.com/neevek/rstun/releases/download/release%2F0.7.1/rstun-linux-x86_64.tar.gz
+      tar -xzf rstun-linux-x86_64.tar.gz
+      mv rstun-linux-x86_64 rstun
+      find rstun -type f -exec chmod +x {} \;
+      rm rstun-linux-x86_64.tar.gz
       echo "✅ Install complete!"
       ;;
     2)
@@ -150,7 +151,7 @@ while true; do
               
 
 
-          if [ ! -f "rstun/target/release/rstund" ]; then
+          if [ ! -f "rstun/rstund" ]; then
             echo "❗ Server build not found. Please run option 1 first."
             read -p "Press Enter to return to main menu..."
             continue
@@ -201,7 +202,7 @@ cat <<EOF | sudo tee $service_file
 
               [Service]
               Type=simple
-              ExecStart=$(pwd)/rstun/target/release/rstund --addr 0.0.0.0:$listen_port --password $password --cert $cert_path/fullchain.pem --key $cert_path/privkey.pem
+              ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password $password --cert $cert_path/fullchain.pem --key $cert_path/privkey.pem
               Restart=always
               RestartSec=5
               User=$(whoami)
@@ -309,7 +310,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/target/release/rstunc --server-addr $server_addr --password $password --tcp-mappings "$mappings" --udp-mappings "$mappings"
+ExecStart=$(pwd)/rstun/rstunc --server-addr $server_addr --password $password --tcp-mappings "$mappings" --udp-mappings "$mappings"
 Restart=always
 RestartSec=5
 User=$(whoami)
