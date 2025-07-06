@@ -106,7 +106,7 @@ while true; do
   echo -e "${CYAN}2) Tunnel Management${RESET}"
   echo -e "${RED}3) Uninstall TrustTunnel${RESET}"
   echo "4) Exit"
-  read -p "${YELLOW}👉 Your choice: ${RESET}" choice
+  read -p "👉 Your choice: " choice
 
   case $choice in
     1)
@@ -131,7 +131,7 @@ while true; do
       draw_green_line
       echo "1) Iran Server"
       echo "2) Kharej Client"
-      read -p "${YELLOW}👉 Your choice: ${RESET}" tunnel_choice
+      read -p "👉Your choice: $" tunnel_choice
 
       case $tunnel_choice in
         1)
@@ -140,11 +140,13 @@ while true; do
           # زیرمنوی مدیریت سرور
           while true; do
             echo ""
-            echo "🔧 TrustTunnel Server Management"
+            echo -e "${GREEN}🔧 TrustTunnel Server Management${RESET}"
+            draw_green_line
             echo "1) َAdd new server"
             echo "2) Show service logs"
             echo "3) Delete service"
             echo "4) Back to main menu"
+            draw_green_line
             read -p "👉 Your choice: " srv_choice
             case $srv_choice in
               1)
@@ -274,11 +276,13 @@ EOF
            
         while true; do
           echo ""
-          echo "📡 TrustTunnel Client Management"
+          echo -e "${GREEN}📡 TrustTunnel Client Management${RESET}"
+          draw_green_line
           echo "1) Add new client"
           echo "2) Show Client Log"
           echo "3) Delete a client"
           echo "4) Back to main menu"
+          draw_green_line
           read -p "👉 Your choice: " client_choice
 
           case $client_choice in
