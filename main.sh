@@ -273,10 +273,9 @@ EOF
           echo ""
           echo "📡 TrustTunnel Client Management"
           echo "1) Add new client"
-          echo "2) List clients"
+          echo "2) Show Client Log"
           echo "3) Delete a client"
-          echo "4) Show Client Log"
-          echo "5) Back to main menu"
+          echo "4) Back to main menu"
           read -p "👉 Your choice: " client_choice
 
           case $client_choice in
@@ -325,60 +324,65 @@ EOF
         echo "✅ Client '$client_name' started as $service_name"
         ;;
       2)
-      clear
-        echo "📝 Available clients:"
-        systemctl list-unit-files --type=service --no-legend \
-        | grep '^trusttunnel-.*\.service' \
-        | awk '{print $1}' \
-        | sed -E 's/^trusttunnel-(.*)\.service$/\1/'
+        clear
+        echo "🔍 Searching for clients ..."
+
+        # List all systemd services that start with trusttunnel-
+        services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
+
+        if [ ${#services[@]} -eq 0 ]; then
+            echo "❌ No clients found."
+            break
+        fi
+
+        echo "📋 Please select a service to see log:"
+        select selected_service in "${services[@]}"; do
+            if [ -n "$selected_service" ]; then
+                echo "📖 Showing the last 15 lines of logs for $selected_service. Press 'q' to quit."
+                sudo journalctl -u "$selected_service" -n 15 --no-pager | less
+                break
+            else
+                echo "⚠️ Invalid selection. Please enter a valid number."
+            fi
+        done
+        break
         ;;
       3)
-      clear
-        read -p "Enter client name to delete (e.g., c1): " del_name
-          del_service="trusttunnel-$del_name"
-          service_file="/etc/systemd/system/${del_service}.service"
+      
 
-          if [ -f "$service_file" ]; then
-            echo "🛑 Stopping $del_service..."
-            sudo systemctl stop "$del_service"
-            echo "🗑️ Disabling $del_service..."
-            sudo systemctl disable "$del_service"
-            echo "🗑️ Removing service file..."
-            sudo rm -f "$service_file"
-            sudo systemctl daemon-reload
-            echo "✅ Client '$del_name' deleted."
-          else
-            echo "⚠️ Client '$del_name' not found."
+          clear
+          echo "🔍 Searching for clients ..."
+
+          # List all systemd services that start with trusttunnel-
+          services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
+          
+          if [ ${#services[@]} -eq 0 ]; then
+              echo "❌ No clients found."
+              break
           fi
+
+          echo "📋 Please select a service to delete:"
+          select selected_service in "${services[@]}"; do
+              if [ -n "$selected_service" ]; then
+                  service_file="/etc/systemd/system/$$selected_service"
+                  echo "🛑 Stopping $selected_service..."
+                  sudo systemctl stop "$selected_service"
+                  echo "🗑️ Disabling $selected_service..."
+                  sudo systemctl disable "$selected_service"
+                  echo "🗑️ Removing service file..."
+                  sudo rm -f "$service_file"
+                  sudo systemctl daemon-reload
+                  echo "✅ Client '$selected_service' deleted.Press 'q' to quit."
+                  break
+              else
+                  echo "⚠️ Invalid selection. Please enter a valid number."
+              fi
+          done
           break
         ;;
 
       4)
-          clear
-          echo "🔍 در حال جستجوی سرویس‌هایی با پیشوند trusttunnel-..."
-
-          # لیست کردن تمام فایل‌های سرویس که با trusttunnel- شروع می‌شن
-          services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
-
-          if [ ${#services[@]} -eq 0 ]; then
-              echo "❌ هیچ سرویسی با پیشوند trusttunnel- پیدا نشد."
-              break
-          fi
-
-          echo "📋 لطفاً یک سرویس را انتخاب کنید:"
-          select selected_service in "${services[@]}"; do
-              if [ -n "$selected_service" ]; then
-                  echo "📖 در حال نمایش آخرین 15 خط لاگ برای $selected_service. برای خروج 'q' را فشار دهید."
-                  sudo journalctl -u "$selected_service" -n 15 --no-pager | less
-                  break
-              else
-                  echo "⚠️ انتخاب نامعتبر. لطفاً یک عدد معتبر وارد کنید."
-              fi
-          done
           break
-          ;;
-      5)
-        break
         ;;
       *)
         echo "❌ Invalid option."
