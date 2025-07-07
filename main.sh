@@ -645,59 +645,81 @@ while true; do
         ;;
       2)
         clear
-        echo "🔍 Searching for clients ..."
+        echo ""
+        draw_line "$CYAN" "=" 40
+        echo -e "${CYAN}        📊 TrustTunnel Client Logs${RESET}"
+        draw_line "$CYAN" "=" 40
+        echo ""
+
+        echo -e "${CYAN}🔍 Searching for clients ...${RESET}"
 
         # List all systemd services that start with trusttunnel-
-        services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
-
+        mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//')
+        
         if [ ${#services[@]} -eq 0 ]; then
-            echo "❌ No clients found."
-            break
+          echo -e "${RED}❌ No clients found.${RESET}"
+          echo ""
+          echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+          read -p ""
+          return # Return to menu
         fi
 
-        echo "📋 Please select a service to see log:"
+        echo -e "${CYAN}📋 Please select a service to see log:${RESET}"
         select selected_service in "${services[@]}"; do
-            if [ -n "$selected_service" ]; then
-                show_service_logs "$selected_service"
-                break
-            else
-                echo "⚠️ Invalid selection. Please enter a valid number."
-            fi
+          if [ -n "$selected_service" ]; then
+            show_service_logs "$selected_service"
+            break # Exit the select loop
+          else
+            echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+          fi
         done
-        break
+        echo "" # Add a blank line after selection
+        echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+        read -p ""
         ;;
       3)
       
 
           clear
-          echo "🔍 Searching for clients ..."
+          echo ""
+          draw_line "$CYAN" "=" 40
+          echo -e "${CYAN}        🗑️ Delete TrustTunnel Client${RESET}"
+          draw_line "$CYAN" "=" 40
+          echo ""
+
+          echo -e "${CYAN}🔍 Searching for clients ...${RESET}"
 
           # List all systemd services that start with trusttunnel-
-          services=($(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//'))
+          mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-' | awk '{print $1}' | sed 's/.service$//')
           
           if [ ${#services[@]} -eq 0 ]; then
-              echo "❌ No clients found."
-              break
+            echo -e "${RED}❌ No clients found.${RESET}"
+            echo ""
+            echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+            read -p ""
+            return # Return to menu
           fi
 
-          echo "📋 Please select a service to delete:"
+          echo -e "${CYAN}📋 Please select a service to delete:${RESET}"
           select selected_service in "${services[@]}"; do
-              if [ -n "$selected_service" ]; then
-                  service_file="/etc/systemd/system/${selected_service}.service"
-                  echo "🛑 Stopping $selected_service..."
-                  sudo systemctl stop "$selected_service"
-                  echo "🗑️ Disabling $selected_service..."
-                  sudo systemctl disable "$selected_service"
-                  echo "🗑️ Removing service file..."
-                  sudo rm -f "$service_file"
-                  sudo systemctl daemon-reload
-                  echo "✅ Client '$selected_service' deleted."
-                  break
-              else
-                  echo "⚠️ Invalid selection. Please enter a valid number."
-              fi
+            if [ -n "$selected_service" ]; then
+              service_file="/etc/systemd/system/${selected_service}.service"
+              echo -e "${YELLOW}🛑 Stopping $selected_service...${RESET}"
+              sudo systemctl stop "$selected_service" > /dev/null 2>&1
+              echo -e "${YELLOW}🗑️ Disabling $selected_service...${RESET}"
+              sudo systemctl disable "$selected_service" > /dev/null 2>&1
+              echo -e "${YELLOW}🗑️ Removing service file...${RESET}"
+              sudo rm -f "$service_file" > /dev/null 2>&1
+              sudo systemctl daemon-reload > /dev/null 2>&1
+              print_success "Client '$selected_service' deleted."
+              break # Exit the select loop
+            else
+              echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+            fi
           done
-          break
+          echo "" # Add a blank line after selection
+          echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+          read -p ""
         ;;
 
       4)
