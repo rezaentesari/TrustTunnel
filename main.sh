@@ -1,13 +1,54 @@
 #!/bin/bash
-GREEN="\e[32m"
-BOLD_GREEN="\e[1;32m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-CYAN="\e[36m"
-MAGENTA="\e[35m"
-WHITE="\e[37m"
-RED="\e[31m"
-RESET="\e[0m"
+
+# Define colors for better terminal output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[0;37m'
+RESET='\033[0m' # No Color
+
+
+
+# Function to draw a colored line for menu separation
+draw_line() {
+  local color="$1"
+  local char="$2"
+  local length=${3:-40} # Default length 40 if not provided
+  printf "${color}"
+  for ((i=0; i<length; i++)); do
+    printf "$char"
+  done
+  printf "${RESET}\n"
+}
+
+# Function to print success messages in green
+print_success() {
+  local message="$1"
+  echo -e "\033[0;32m✅ $message\033[0m" # Green color for success messages
+}
+
+# Function to show service logs and return to a "menu"
+show_service_logs() {
+  local service_name="$1"
+  clear # Clear the screen before showing logs
+  echo -e "\033[0;34m--- Displaying logs for $service_name ---\033[0m" # Blue color for header
+
+  # Display the last 50 lines of logs for the specified service
+  # --no-pager ensures the output is direct to the terminal without opening 'less'
+  sudo journalctl -u "$service_name" -n 50 --no-pager
+
+  echo ""
+  echo -e "\033[1;33mPress any key to return to the previous menu...\033[0m" # Yellow color for prompt
+  read -n 1 -s -r # Read a single character, silent, raw input
+
+  clear 
+}
+
+
+
 
 draw_green_line() {
   echo -e "${GREEN}+--------------------------------------------------------+${RESET}"
@@ -96,6 +137,7 @@ while true; do
   echo -e "${BOLD_GREEN}"
   echo -e "\033[1;33m=========================================================="
   echo -e "Developed by ErfanXRay => https://github.com/Erfan-XRay/TrustTunnel"
+  echo -e "Telegram Channel => @Erfan_XRay"
   echo -e "\033[0m${WHITE}Reverse tunnel over QUIC ( Based on rstun project)${WHITE}${RESET}"
   draw_green_line
   echo -e "${GREEN}|${RESET}              ${BOLD_GREEN}TrustTunnel Main Menu${RESET}                  ${GREEN}|${RESET}"
@@ -131,6 +173,8 @@ while true; do
       draw_green_line
       echo "1) Iran Server"
       echo "2) Kharej Client"
+      echo "3) Return to main menu"
+      draw_green_line
       read -p "👉Your choice: $" tunnel_choice
 
       case $tunnel_choice in
@@ -139,15 +183,20 @@ while true; do
 
           # زیرمنوی مدیریت سرور
           while true; do
-            echo ""
-            echo -e "${GREEN}🔧 TrustTunnel Server Management${RESET}"
-            draw_green_line
-            echo "1) َAdd new server"
-            echo "2) Show service logs"
-            echo "3) Delete service"
-            echo "4) Back to main menu"
-            draw_green_line
-            read -p "👉 Your choice: " srv_choice
+              clear # Clear screen for a fresh menu display
+              echo ""
+              draw_line "$GREEN" "=" 40 # Top border
+              echo -e "${CYAN}        🔧 TrustTunnel Server Management${RESET}"
+              draw_line "$GREEN" "=" 40 # Separator
+              echo ""
+              echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new server${RESET}"
+              echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show service logs${RESET}"
+              echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete service${RESET}"
+              echo -e "  ${YELLOW}4)${RESET} ${WHITE}Back to main menu${RESET}"
+              echo ""
+              draw_line "$GREEN" "-" 40 # Bottom border
+              read -p "👉 ${CYAN}Your choice:${RESET} " srv_choice
+              echo "" # Add a blank line for better spacing after input
             case $srv_choice in
               1)
 
@@ -176,7 +225,10 @@ while true; do
 
             read -p "Enter tunneling address port (default = 6060): " listen_port
             listen_port=${listen_port:-6060}  
-
+            read -p "Enter tcp upstream port (default = 8800): " tcp_upstream_port
+            tcp_upstream_port=${tcp_upstream_port:-8800}  
+            read -p "Enter udp upstream port (default = 8800): " udp_upstream_port
+            udp_upstream_port=${udp_upstream_port:-8800}  
             read -p "Enter password: " password
             if [[ -z "$password" ]]; then
               echo "❌ Password cannot be empty!"
@@ -205,7 +257,7 @@ cat <<EOF | sudo tee $service_file
 
               [Service]
               Type=simple
-              ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password $password --cert $cert_path/fullchain.pem --key $cert_path/privkey.pem
+              ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port   --udp-upstream $udp_upstream_port  --password $password --cert $cert_path/fullchain.pem --key $cert_path/privkey.pem
               Restart=always
               RestartSec=5
               User=$(whoami)
@@ -237,8 +289,7 @@ EOF
           # Show service logs
                 service_file="/etc/systemd/system/trusttunnel.service"
                 if [ -f "$service_file" ]; then
-                  echo "📖 Showing last 15 lines of trusttunnel.service logs. Press 'q' to exit."
-                  sudo journalctl -u trusttunnel.service -n 15 --no-pager | less
+                  show_service_logs "trusttunnel.service"
                 else
                   echo "❌ Service 'trusttunnel.service' not found. Cannot show logs."
                   
@@ -275,15 +326,20 @@ EOF
           clear
            
         while true; do
+          clear # Clear screen for a fresh menu display
           echo ""
-          echo -e "${GREEN}📡 TrustTunnel Client Management${RESET}"
-          draw_green_line
-          echo "1) Add new client"
-          echo "2) Show Client Log"
-          echo "3) Delete a client"
-          echo "4) Back to main menu"
-          draw_green_line
-          read -p "👉 Your choice: " client_choice
+          draw_line "$GREEN" "=" 40 # Top border
+          echo -e "${CYAN}        📡 TrustTunnel Client Management${RESET}"
+          draw_line "$GREEN" "=" 40 # Separator
+          echo ""
+          echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new client${RESET}"
+          echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Client Log${RESET}"
+          echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a client${RESET}"
+          echo -e "  ${YELLOW}4)${RESET} ${WHITE}Back to main menu${RESET}"
+          echo ""
+          draw_line "$GREEN" "-" 40 # Bottom border
+          read -p "👉 ${CYAN}Your choice:${RESET} " client_choice
+          echo "" # Add a blank line for better spacing after input
 
           case $client_choice in
             1)
@@ -298,16 +354,37 @@ EOF
           continue
         fi
 
-        read -p "🌐 Server address and port (e.g., 1.2.3.4:6060): " server_addr
+        read -p "🌐 Server address and port (e.x., server.yourdomain.com:6060): " server_addr
+        read -p "Tunnel mode ? (tcp/udp/both): " tunnel_mode
         read -p "🔑 Password: " password
         read -p "🔢 How many ports to tunnel? " port_count
-
+        
         mappings=""
         for ((i=1; i<=port_count; i++)); do
           read -p "Port #$i: " port
           mapping="IN^0.0.0.0:$port^0.0.0.0:$port"
           [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
         done
+
+        # Determine the mapping arguments based on the tunnel_mode
+        mapping_args=""
+        case "$tunnel_mode" in
+          "tcp")
+            mapping_args="--tcp-mappings \"$mappings\""
+            ;;
+          "udp")
+            mapping_args="--udp-mappings \"$mappings\""
+            ;;
+          "both")
+            mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+            ;;
+          *)
+            echo "⚠️ Invalid tunnel mode specified. Using 'both' as default."
+            mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+            ;;
+        esac
+
+
 
 cat <<EOF | sudo tee $service_file
 [Unit]
@@ -316,7 +393,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr $server_addr --password $password --tcp-mappings "$mappings" --udp-mappings "$mappings"
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -328,7 +405,11 @@ EOF
         sudo systemctl daemon-reload
         sudo systemctl enable "$service_name"
         sudo systemctl start "$service_name"
-        echo "✅ Client '$client_name' started as $service_name"
+        print_success "Client '$client_name' started as $service_name"
+        read -p "Do you want to view the logs for $client_name now? (y/n): " view_logs_choice
+        if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+          show_service_logs "$service_name"
+        fi
         break;
         ;;
       2)
@@ -346,8 +427,7 @@ EOF
         echo "📋 Please select a service to see log:"
         select selected_service in "${services[@]}"; do
             if [ -n "$selected_service" ]; then
-                echo "📖 Showing the last 15 lines of logs for $selected_service. Press 'q' to quit."
-                sudo journalctl -u "$selected_service" -n 15 --no-pager | less
+                show_service_logs "$selected_service"
                 break
             else
                 echo "⚠️ Invalid selection. Please enter a valid number."
@@ -372,7 +452,7 @@ EOF
           echo "📋 Please select a service to delete:"
           select selected_service in "${services[@]}"; do
               if [ -n "$selected_service" ]; then
-                  service_file="/etc/systemd/system/$$selected_service"
+                  service_file="/etc/systemd/system/${selected_service}.service"
                   echo "🛑 Stopping $selected_service..."
                   sudo systemctl stop "$selected_service"
                   echo "🗑️ Disabling $selected_service..."
@@ -430,7 +510,7 @@ EOF
               echo "⚠️ 'rstun' folder not found."
             fi
 
-            echo "✅ TrustTunnel uninstalled successfully."
+            print_success " TrustTunnel uninstalled successfully."
           else
             echo "❌ Uninstall cancelled."
           fi
