@@ -23,7 +23,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/ma
 
 ---
 
-## 📣 شبکه های اجتمایی من
+## 📣 سوشیال مدیای من
 
 
 [![Telegram](https://img.shields.io/badge/Telegram--0088CC?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Erfan_XRay) 
