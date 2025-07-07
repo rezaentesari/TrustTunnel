@@ -167,15 +167,20 @@ while true; do
       echo "✅ Install complete!"
       ;;
     2)
-      clear
-      echo ""
-      echo -e "${GREEN}📡 Choose Tunnel Mode:${RESET}"
-      draw_green_line
-      echo "1) Iran Server"
-      echo "2) Kharej Client"
-      echo "3) Return to main menu"
-      draw_green_line
-      read -p "👉Your choice: $" tunnel_choice
+    clear # Clear screen for a fresh menu display
+    echo ""
+    draw_line "$GREEN" "=" 40 # Top border
+    echo -e "${CYAN}        🌐 Choose Tunnel Mode${RESET}"
+    draw_line "$GREEN" "=" 40 # Separator
+    echo ""
+    echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Server (Iran)${RESET}" # Magenta for Server
+    echo -e "  ${YELLOW}2)${RESET} ${BLUE}Client (Kharej)${RESET}" # Blue for Client
+    echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}" # White for generic option
+    echo ""
+    draw_line "$GREEN" "-" 40 # Bottom border
+    echo -e "👉 ${CYAN}Your choice:${RESET} " # Moved prompt to echo -e
+    read -p "" tunnel_choice # Removed prompt from read -p
+    echo "" # Add a blank line for better spacing after input
 
       case $tunnel_choice in
         1)
@@ -195,8 +200,9 @@ while true; do
               echo -e "  ${YELLOW}4)${RESET} ${WHITE}Back to main menu${RESET}"
               echo ""
               draw_line "$GREEN" "-" 40 # Bottom border
-              read -p "👉 ${CYAN}Your choice:${RESET} " srv_choice
-              echo "" # Add a blank line for better spacing after input
+              echo -e "👉 ${CYAN}Your choice:${RESET} " 
+              read -p "" srv_choice 
+              echo "" 
             case $srv_choice in
               1)
 
@@ -338,8 +344,9 @@ EOF
           echo -e "  ${YELLOW}4)${RESET} ${WHITE}Back to main menu${RESET}"
           echo ""
           draw_line "$GREEN" "-" 40 # Bottom border
-          read -p "👉 ${CYAN}Your choice:${RESET} " client_choice
-          echo "" # Add a blank line for better spacing after input
+          echo -e "👉 ${CYAN}Your choice:${RESET} " 
+          read -p "" client_choice 
+          echo "" 
 
           case $client_choice in
             1)
@@ -484,39 +491,8 @@ EOF
                 esac
       ;;
     3)
-          clear
-              read -p "⚠️ Are you sure you want to uninstall TrustTunnel and remove all files? (y/N): " confirm
-          if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            echo "🧹 Uninstalling TrustTunnel..."
-
-            # Stop and disable service if exists
-            if systemctl list-units --full -all | grep -q "trusttunnel.service"; then
-              echo "🛑 Stopping trusttunnel service..."
-              sudo systemctl stop trusttunnel.service
-              echo "🗑️ Disabling trusttunnel service..."
-              sudo systemctl disable trusttunnel.service
-              echo "🧹 Removing service file..."
-              sudo rm -f /etc/systemd/system/trusttunnel.service
-              sudo systemctl daemon-reload
-            else
-              echo "⚠️ TrustTunnel service not found."
-            fi
-
-            # Remove rstun folder if exists
-            if [ -d "rstun" ]; then
-              echo "🗑️ Removing 'rstun' folder..."
-              rm -rf rstun
-            else
-              echo "⚠️ 'rstun' folder not found."
-            fi
-
-            print_success " TrustTunnel uninstalled successfully."
-          else
-            echo "❌ Uninstall cancelled."
-          fi
-          read -p "Press Enter to return to main menu..."
-          ;;
-
+          uninstall_trusttunnel_action
+    ;;
 
     4)
         exit 0 
@@ -533,3 +509,53 @@ else
 echo ""
   echo "🛑 Rust is not ready. Skipping the rest of the script."
 fi
+
+
+# --- New: Uninstall TrustTunnel Action ---
+uninstall_trusttunnel_action() {
+  clear
+  echo ""
+  echo -e "${RED}⚠️ Are you sure you want to uninstall TrustTunnel and remove all associated files and services? (y/N): ${RESET}"
+  read -p "" confirm
+  echo ""
+
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    echo "🧹 Uninstalling TrustTunnel..."
+
+    # Find and remove all trusttunnel-* services
+    echo "Searching for TrustTunnel services to remove..."
+    # List all unit files that start with 'trusttunnel-'
+    mapfile -t trusttunnel_services < <(sudo systemctl list-unit-files --full --no-pager | grep '^trusttunnel-.*\.service' | awk '{print $1}')
+
+    if [ ${#trusttunnel_services[@]} -gt 0 ]; then
+      echo "🛑 Stopping and disabling TrustTunnel services..."
+      for service_file in "${trusttunnel_services[@]}"; do
+        local service_name=$(basename "$service_file") # Get just the service name from the file path
+        echo "  - Processing $service_name..."
+        sudo systemctl stop "$service_name" > /dev/null 2>&1
+        sudo systemctl disable "$service_name" > /dev/null 2>&1
+        sudo rm -f "/etc/systemd/system/$service_name" > /dev/null 2>&1
+      done
+      sudo systemctl daemon-reload
+      print_success "All TrustTunnel services have been stopped, disabled, and removed."
+    else
+      echo "⚠️ No TrustTunnel services found to remove."
+    fi
+
+    # Remove rstun folder if exists
+    if [ -d "rstun" ]; then
+      echo "🗑️ Removing 'rstun' folder..."
+      rm -rf rstun
+      print_success "'rstun' folder removed successfully."
+    else
+      echo "⚠️ 'rstun' folder not found."
+    fi
+
+    print_success "TrustTunnel uninstallation complete."
+  else
+    echo -e "${YELLOW}❌ Uninstall cancelled.${RESET}"
+  fi
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  read -p ""
+}
