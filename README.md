@@ -18,7 +18,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/ma
 ### My social accounts
 
 [![Telegram](https://img.shields.io/badge/Telegram--0088CC?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Erfan_XRay) 
-[![YouTube](https://img.shields.io/badge/YouTube--FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/channel/ErfanXRay)
+[![YouTube](https://img.shields.io/badge/YouTube--FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/channel/Erfan_XRay)
 
 ## Donation Link
 
