@@ -147,6 +147,254 @@ install_trusttunnel_action() {
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
   read -p ""
 }
+
+# --- New: Add New Server Action (Beautified) ---
+add_new_server_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New TrustTunnel Server${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  if [ ! -f "rstun/rstund" ]; then
+    echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
+    echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return # Use return instead of continue in a function
+  fi
+
+  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
+  echo -e "  (e.g., server.example.com)"
+  echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} "
+  read -p "" domain
+  echo ""
+
+  echo -e "👉 ${WHITE}Please enter your email:${RESET} "
+  read -p "" email
+  echo ""
+
+  local cert_path="/etc/letsencrypt/live/$domain"
+
+  if [ -d "$cert_path" ]; then
+    print_success "SSL certificate for $domain already exists. Skipping Certbot."
+  else
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
+    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
+      print_success "SSL certificate obtained successfully."
+    else
+      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return # Use return instead of exit 1
+    fi
+  fi
+
+  # Proceed only if certificate acquisition was successful or it already existed
+  if [ -d "$cert_path" ]; then
+    echo ""
+    echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
+    echo -e "  (Default tunneling address port is 6060)"
+    echo -e "👉 ${WHITE}Enter tunneling address port:${RESET} "
+    read -p "" listen_port
+    listen_port=${listen_port:-6060}
+
+    echo -e "  (Default TCP upstream port is 8800)"
+    echo -e "👉 ${WHITE}Enter TCP upstream port:${RESET} "
+    read -p "" tcp_upstream_port
+    tcp_upstream_port=${tcp_upstream_port:-8800}
+
+    echo -e "  (Default UDP upstream port is 8800)"
+    echo -e "👉 ${WHITE}Enter UDP upstream port:${RESET} "
+    read -p "" udp_upstream_port
+    udp_upstream_port=${udp_upstream_port:-8800}
+
+    echo -e "👉 ${WHITE}Enter password:${RESET} "
+    read -p "" password
+    echo ""
+
+    if [[ -z "$password" ]]; then
+      echo -e "${RED}❌ Password cannot be empty!${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return # Use return instead of exit 1
+    fi
+
+    local service_file="/etc/systemd/system/trusttunnel.service"
+
+    if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
+      echo -e "${YELLOW}🛑 Stopping existing Trusttunnel service...${RESET}"
+      sudo systemctl stop trusttunnel.service > /dev/null 2>&1
+      echo -e "${YELLOW}🗑️ Disabling and removing existing Trusttunnel service...${RESET}"
+      sudo systemctl disable trusttunnel.service > /dev/null 2>&1
+      sudo rm -f /etc/systemd/system/trusttunnel.service > /dev/null 2>&1
+      sudo systemctl daemon-reload > /dev/null 2>&1
+      print_success "Existing TrustTunnel service removed."
+    fi
+
+    cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=TrustTunnel Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+    sudo systemctl daemon-reload
+
+    echo -e "${CYAN}🚀 Enabling and starting Trusttunnel service...${RESET}"
+    sudo systemctl enable trusttunnel.service > /dev/null 2>&1
+    sudo systemctl start trusttunnel.service > /dev/null 2>&1
+
+    print_success "TrustTunnel service started successfully!"
+  else
+    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel.service now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel.service
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+
+}
+add_new_client_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New TrustTunnel Client${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  # Prompt for the client name (e.g., asiatech, respina, server2)
+  echo -e "👉 ${WHITE}Enter client name (e.g., asiatech, respina, server2):${RESET} "
+  read -p "" client_name
+  echo ""
+
+  # Construct the service name based on the client name
+  service_name="trusttunnel-$client_name"
+  # Define the path for the systemd service file
+  service_file="/etc/systemd/system/${service_name}.service"
+
+  # Check if a service with the given name already exists
+  if [ -f "$service_file" ]; then
+    echo -e "${RED}❌ Service with this name already exists.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return # Return to menu
+  fi
+
+  echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
+  echo -e "  (e.x., server.yourdomain.com:6060)"
+  echo -e "👉 ${WHITE}Server address and port:${RESET} "
+  read -p "" server_addr
+  echo ""
+
+  echo -e "${CYAN}📡 Tunnel Mode:${RESET}"
+  echo -e "  (tcp/udp/both)"
+  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} "
+  read -p "" tunnel_mode
+  echo ""
+
+  echo -e "🔑 ${WHITE}Password:${RESET} "
+  read -p "" password
+  echo ""
+
+  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}"
+  echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} "
+  read -p "" port_count
+  echo ""
+  
+  mappings=""
+  for ((i=1; i<=port_count; i++)); do
+    echo -e "👉 ${WHITE}Port #$i:${RESET} "
+    read -p "" port
+    mapping="IN^0.0.0.0:$port^0.0.0.0:$port"
+    [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
+    echo ""
+  done
+
+  # Determine the mapping arguments based on the tunnel_mode
+  mapping_args=""
+  case "$tunnel_mode" in
+    "tcp")
+      mapping_args="--tcp-mappings \"$mappings\""
+      ;;
+    "udp")
+      mapping_args="--udp-mappings \"$mappings\""
+      ;;
+    "both")
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+    *)
+      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}"
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+  esac
+
+  # Create the systemd service file using a here-document
+  cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=TrustTunnel Client - $client_name
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+  sudo systemctl daemon-reload
+
+  echo -e "${CYAN}🚀 Enabling and starting Trusttunnel client service...${RESET}"
+  sudo systemctl enable "$service_name" > /dev/null 2>&1
+  sudo systemctl start "$service_name" > /dev/null 2>&1
+
+  print_success "Client '$client_name' started as $service_name"
+  
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+
+
 # Function to draw a colored line for menu separation
 draw_line() {
   local color="$1"
@@ -329,88 +577,7 @@ while true; do
             case $srv_choice in
               1)
 
-              clear
-
-
-          if [ ! -f "rstun/rstund" ]; then
-            echo "❗ Server build not found. Please run option 1 first."
-            read -p "Press Enter to return to main menu..."
-            continue
-          fi
-          read -p "🌐 Please enter your domain pointed to this server (e.g., server.example.com): " domain
-          read -p "🌐 Please enter your email: " email
-          cert_path="/etc/letsencrypt/live/$domain"
-          if [ -d "$cert_path" ]; then
-            echo "✅ SSL certificate for $domain already exists. Skipping Certbot."
-          else
-            echo "🔐 Requesting SSL certificate with Certbot..."
-            sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"
-          fi
-
-
-          if [ -d "$cert_path" ]; then
-            echo "✅ SSL certificate obtained successfully."
-
-
-            read -p "Enter tunneling address port (default = 6060): " listen_port
-            listen_port=${listen_port:-6060}  
-            read -p "Enter tcp upstream port (default = 8800): " tcp_upstream_port
-            tcp_upstream_port=${tcp_upstream_port:-8800}  
-            read -p "Enter udp upstream port (default = 8800): " udp_upstream_port
-            udp_upstream_port=${udp_upstream_port:-8800}  
-            read -p "Enter password: " password
-            if [[ -z "$password" ]]; then
-              echo "❌ Password cannot be empty!"
-              exit 1
-            fi
-
-            
-
-            cert_path="/etc/letsencrypt/live/$domain"
-
-            if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
-              echo "🛑 Stopping existing Trusttunnel service..."
-              sudo systemctl stop trusttunnel.service
-              echo "🗑️ Disabling and removing existing Trusttunnel service..."
-              sudo systemctl disable trusttunnel.service
-              sudo rm -f /etc/systemd/system/trusttunnel.service
-              sudo systemctl daemon-reload
-            fi
-
-            service_file="/etc/systemd/system/trusttunnel.service"
-
-cat <<EOF | sudo tee $service_file
-              [Unit]
-              Description=TrustTunnel Service
-              After=network.target
-
-              [Service]
-              Type=simple
-              ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port   --udp-upstream $udp_upstream_port  --password $password --cert $cert_path/fullchain.pem --key $cert_path/privkey.pem
-              Restart=always
-              RestartSec=5
-              User=$(whoami)
-
-              [Install]
-              WantedBy=multi-user.target
-EOF
-
-          echo "🔧 Reloading systemd daemon..."
-          sudo systemctl daemon-reload
-
-          echo "🚀 Enabling and starting Trusttunnel service..."
-          sudo systemctl enable trusttunnel.service
-          sudo systemctl start trusttunnel.service
-
-          echo "✅ TrustTunnel service started!"
-
-
-
-
-
-          else
-            echo "❌ Failed to obtain SSL certificate. Cant start server without ssl ..."
-          fi
+              add_new_server_action
 
           ;;
           2)
@@ -474,73 +641,7 @@ EOF
           case $client_choice in
             1)
             clear
-        # اضافه کردن کلاینت جدید
-        read -p "Enter client name (e.g., asiatech, respina, server2): " client_name
-        service_name="trusttunnel-$client_name"
-        service_file="/etc/systemd/system/${service_name}.service"
-
-        if [ -f "$service_file" ]; then
-          echo "❌ Service with this name already exists."
-          continue
-        fi
-
-        read -p "🌐 Server address and port (e.x., server.yourdomain.com:6060): " server_addr
-        read -p "Tunnel mode ? (tcp/udp/both): " tunnel_mode
-        read -p "🔑 Password: " password
-        read -p "🔢 How many ports to tunnel? " port_count
-        
-        mappings=""
-        for ((i=1; i<=port_count; i++)); do
-          read -p "Port #$i: " port
-          mapping="IN^0.0.0.0:$port^0.0.0.0:$port"
-          [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
-        done
-
-        # Determine the mapping arguments based on the tunnel_mode
-        mapping_args=""
-        case "$tunnel_mode" in
-          "tcp")
-            mapping_args="--tcp-mappings \"$mappings\""
-            ;;
-          "udp")
-            mapping_args="--udp-mappings \"$mappings\""
-            ;;
-          "both")
-            mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
-            ;;
-          *)
-            echo "⚠️ Invalid tunnel mode specified. Using 'both' as default."
-            mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
-            ;;
-        esac
-
-
-
-cat <<EOF | sudo tee $service_file
-[Unit]
-Description=TrustTunnel Client - $client_name
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
-Restart=always
-RestartSec=5
-User=$(whoami)
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-        sudo systemctl daemon-reload
-        sudo systemctl enable "$service_name"
-        sudo systemctl start "$service_name"
-        print_success "Client '$client_name' started as $service_name"
-        read -p "Do you want to view the logs for $client_name now? (y/n): " view_logs_choice
-        if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-          show_service_logs "$service_name"
-        fi
-        break;
+        add_new_client_action
         ;;
       2)
         clear
