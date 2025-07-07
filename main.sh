@@ -58,7 +58,95 @@ uninstall_trusttunnel_action() {
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
   read -p ""
 }
+install_trusttunnel_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        📥 Installing TrustTunnel${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
 
+  # Delete existing rstun folder if it exists
+  if [ -d "rstun" ]; then
+    echo -e "${YELLOW}🧹 Removing existing 'rstun' folder...${RESET}"
+    rm -rf rstun
+    print_success "Existing 'rstun' folder removed."
+  fi
+
+  echo -e "${CYAN}🚀 Detecting system architecture...${RESET}"
+  local arch=$(uname -m)
+  local download_url=""
+  local filename=""
+  local supported_arch=true # Flag to track if architecture is directly supported
+
+  case "$arch" in
+    "x86_64")
+      filename="rstun-linux-x86_64.tar.gz"
+      ;;
+    "aarch64" | "arm64")
+      filename="rstun-linux-aarch64.tar.gz"
+      ;;
+    "armv7l") # Corrected filename for armv7l
+      filename="rstun-linux-armv7.tar.gz"
+      ;;
+    *)
+      supported_arch=false # Mark as unsupported
+      echo -e "${RED}❌ Error: Unsupported architecture detected: $arch${RESET}"
+      echo -e "${YELLOW}Do you want to try installing the x86_64 version as a fallback? (y/N): ${RESET}"
+      read -p "" fallback_confirm
+      echo ""
+      if [[ "$fallback_confirm" =~ ^[Yy]$ ]]; then
+        filename="rstun-linux-x86_64.tar.gz"
+        echo -e "${CYAN}Proceeding with x86_64 version as requested.${RESET}"
+      else
+        echo -e "${YELLOW}Installation cancelled. Please download rstun manually for your system from https://github.com/neevek/rstun/releases${RESET}"
+        echo ""
+        echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+        read -p ""
+        return 1 # Indicate failure
+      fi
+      ;;
+  esac
+
+  download_url="https://github.com/neevek/rstun/releases/download/release%2F0.7.1/${filename}"
+
+  echo -e "${CYAN}Downloading $filename for $arch...${RESET}"
+  if wget -q --show-progress "$download_url" -O "$filename"; then
+    print_success "Download complete!"
+  else
+    echo -e "${RED}❌ Error: Failed to download $filename. Please check your internet connection or the URL.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return 1 # Indicate failure
+  fi
+
+  echo -e "${CYAN}📦 Extracting files...${RESET}"
+  if tar -xzf "$filename"; then
+    mv "${filename%.tar.gz}" rstun # Rename extracted folder to 'rstun'
+    print_success "Extraction complete!"
+  else
+    echo -e "${RED}❌ Error: Failed to extract $filename. Corrupted download?${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return 1 # Indicate failure
+  fi
+
+  echo -e "${CYAN}➕ Setting execute permissions...${RESET}"
+  find rstun -type f -exec chmod +x {} \;
+  print_success "Permissions set."
+
+  echo -e "${CYAN}🗑️ Cleaning up downloaded archive...${RESET}"
+  rm "$filename"
+  print_success "Cleanup complete."
+
+  echo ""
+  print_success "TrustTunnel installation complete!"
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  read -p ""
+}
 # Function to draw a colored line for menu separation
 draw_line() {
   local color="$1"
@@ -199,19 +287,7 @@ while true; do
 
   case $choice in
     1)
-      clear
-      # Delete existing rstun folder if it exists
-      if [ -d "rstun" ]; then
-        echo "🧹 Removing existing 'TrustTunnel' folder..."
-        rm -rf rstun
-      fi
-      echo "📥 Installing TrustTunnel..."
-      wget https://github.com/neevek/rstun/releases/download/release%2F0.7.1/rstun-linux-x86_64.tar.gz
-      tar -xzf rstun-linux-x86_64.tar.gz
-      mv rstun-linux-x86_64 rstun
-      find rstun -type f -exec chmod +x {} \;
-      rm rstun-linux-x86_64.tar.gz
-      echo "✅ Install complete!"
+      install_trusttunnel_action
       ;;
     2)
     clear # Clear screen for a fresh menu display
