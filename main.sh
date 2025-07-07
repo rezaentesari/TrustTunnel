@@ -267,9 +267,9 @@ if [ "$RUST_IS_READY" = true ]; then
 while true; do
   # Clear terminal and show logo
   clear
-  echo -e "${BOLD_GREEN}"
+  echo -e "${CYAN}"
   figlet -f slant "TrustTunnel"
-  echo -e "${BOLD_GREEN}"
+  echo -e "${CYAN}"
   echo -e "\033[1;33m=========================================================="
   echo -e "Developed by ErfanXRay => https://github.com/Erfan-XRay/TrustTunnel"
   echo -e "Telegram Channel => @Erfan_XRay"
