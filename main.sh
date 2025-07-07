@@ -10,7 +10,54 @@ CYAN='\033[0;36m'
 WHITE='\033[0;37m'
 RESET='\033[0m' # No Color
 
+# --- New: Uninstall TrustTunnel Action ---
+uninstall_trusttunnel_action() {
+  clear
+  echo ""
+  echo -e "${RED}⚠️ Are you sure you want to uninstall TrustTunnel and remove all associated files and services? (y/N): ${RESET}"
+  read -p "" confirm
+  echo ""
 
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    echo "🧹 Uninstalling TrustTunnel..."
+
+    # Find and remove all trusttunnel-* services
+    echo "Searching for TrustTunnel services to remove..."
+    # List all unit files that start with 'trusttunnel-'
+    mapfile -t trusttunnel_services < <(sudo systemctl list-unit-files --full --no-pager | grep '^trusttunnel-.*\.service' | awk '{print $1}')
+
+    if [ ${#trusttunnel_services[@]} -gt 0 ]; then
+      echo "🛑 Stopping and disabling TrustTunnel services..."
+      for service_file in "${trusttunnel_services[@]}"; do
+        local service_name=$(basename "$service_file") # Get just the service name from the file path
+        echo "  - Processing $service_name..."
+        sudo systemctl stop "$service_name" > /dev/null 2>&1
+        sudo systemctl disable "$service_name" > /dev/null 2>&1
+        sudo rm -f "/etc/systemd/system/$service_name" > /dev/null 2>&1
+      done
+      sudo systemctl daemon-reload
+      print_success "All TrustTunnel services have been stopped, disabled, and removed."
+    else
+      echo "⚠️ No TrustTunnel services found to remove."
+    fi
+
+    # Remove rstun folder if exists
+    if [ -d "rstun" ]; then
+      echo "🗑️ Removing 'rstun' folder..."
+      rm -rf rstun
+      print_success "'rstun' folder removed successfully."
+    else
+      echo "⚠️ 'rstun' folder not found."
+    fi
+
+    print_success "TrustTunnel uninstallation complete."
+  else
+    echo -e "${YELLOW}❌ Uninstall cancelled.${RESET}"
+  fi
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  read -p ""
+}
 
 # Function to draw a colored line for menu separation
 draw_line() {
@@ -491,8 +538,8 @@ EOF
                 esac
       ;;
     3)
-          uninstall_trusttunnel_action
-    ;;
+          uninstall_trusttunnel_action ;;
+   
 
     4)
         exit 0 
@@ -511,51 +558,3 @@ echo ""
 fi
 
 
-# --- New: Uninstall TrustTunnel Action ---
-uninstall_trusttunnel_action() {
-  clear
-  echo ""
-  echo -e "${RED}⚠️ Are you sure you want to uninstall TrustTunnel and remove all associated files and services? (y/N): ${RESET}"
-  read -p "" confirm
-  echo ""
-
-  if [[ "$confirm" =~ ^[Yy]$ ]]; then
-    echo "🧹 Uninstalling TrustTunnel..."
-
-    # Find and remove all trusttunnel-* services
-    echo "Searching for TrustTunnel services to remove..."
-    # List all unit files that start with 'trusttunnel-'
-    mapfile -t trusttunnel_services < <(sudo systemctl list-unit-files --full --no-pager | grep '^trusttunnel-.*\.service' | awk '{print $1}')
-
-    if [ ${#trusttunnel_services[@]} -gt 0 ]; then
-      echo "🛑 Stopping and disabling TrustTunnel services..."
-      for service_file in "${trusttunnel_services[@]}"; do
-        local service_name=$(basename "$service_file") # Get just the service name from the file path
-        echo "  - Processing $service_name..."
-        sudo systemctl stop "$service_name" > /dev/null 2>&1
-        sudo systemctl disable "$service_name" > /dev/null 2>&1
-        sudo rm -f "/etc/systemd/system/$service_name" > /dev/null 2>&1
-      done
-      sudo systemctl daemon-reload
-      print_success "All TrustTunnel services have been stopped, disabled, and removed."
-    else
-      echo "⚠️ No TrustTunnel services found to remove."
-    fi
-
-    # Remove rstun folder if exists
-    if [ -d "rstun" ]; then
-      echo "🗑️ Removing 'rstun' folder..."
-      rm -rf rstun
-      print_success "'rstun' folder removed successfully."
-    else
-      echo "⚠️ 'rstun' folder not found."
-    fi
-
-    print_success "TrustTunnel uninstallation complete."
-  else
-    echo -e "${YELLOW}❌ Uninstall cancelled.${RESET}"
-  fi
-  echo ""
-  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-  read -p ""
-}
