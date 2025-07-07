@@ -9,6 +9,8 @@ Run the following script on your server (Debian or Ubuntu):
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/main.sh)
 ```
+## How to use ?
+[![Watch the video](https://img.youtube.com/vi/mwQJ4_pYLNc/hqdefault.jpg)](https://youtu.be/mwQJ4_pYLNc)
 ## ⚙️ Features
 - Add, remove, and manage client/server services
 - View logs of specific clients
