@@ -9,7 +9,6 @@ Run the following script on your server (Debian or Ubuntu):
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/main.sh)
 ```
-Note : Currently only supports x64/x86 servers .
 ## ⚙️ Features
 - Add, remove, and manage client/server services
 - View logs of specific clients
