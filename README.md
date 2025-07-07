@@ -15,10 +15,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/ma
 - Interactive CLI with colorful UI
 - Easy integration with Xray/V2Ray/Wireguard/etc.
 
-## My Telegram channel
-Check the channel below for more information:
+### My social accounts
 
-https://t.me/Erfan_XRay
+[![Telegram](https://img.shields.io/badge/Telegram--0088CC?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Erfan_XRay) 
+[![YouTube](https://img.shields.io/badge/YouTube--FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/channel/ErfanXRay)
 
 ## Donation Link
 
