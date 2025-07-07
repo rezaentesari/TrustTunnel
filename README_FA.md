@@ -13,7 +13,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/Erfan-XRay/TrustTunnel/main/ma
 
 
 ---
-
+## آموزش استفاده
+[![Watch the video](https://img.youtube.com/vi/mwQJ4_pYLNc/hqdefault.jpg)](https://youtu.be/mwQJ4_pYLNc)
 ## ⚙️ امکانات
 
 - افزودن، حذف و مدیریت سرویس‌های کلاینت/سرور  
