@@ -12,8 +12,9 @@ RESET='\033[0m' # No Color
 BOLD_GREEN='\033[1;32m' # Bold Green for menu title
 
 # --- Global Paths and Markers ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-TRUST_SCRIPT_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
+# Use readlink -f to get the canonical path of the script, resolving symlinks and /dev/fd/ issues
+TRUST_SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$TRUST_SCRIPT_PATH")"
 SETUP_MARKER_FILE="/var/lib/trusttunnel/.setup_complete"
 TRUST_COMMAND_PATH="/usr/local/bin/trust"
 
@@ -107,8 +108,16 @@ ensure_trust_command_available() {
   echo -e "${CYAN}Checking 'trust' command symlink status...${RESET}" # Checking 'trust' command symlink status...
 
   local symlink_ok=false
+  local current_symlink_target=$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)
 
-  # First, try to create/update the symlink
+  # Check if the current symlink points to a temporary file descriptor
+  if [[ "$current_symlink_target" == /dev/fd/* ]]; then
+    print_error "❌ Warning: The existing 'trust' symlink points to a temporary location ($current_symlink_target)." # Warning: The existing 'trust' symlink points to a temporary location.
+    print_error "   This can happen if the script was run in a non-standard way (e.g., piped to bash)." # This can happen if the script was run in a non-standard way (e.g., piped to bash).
+    print_error "   Attempting to fix it by recreating the symlink to the permanent script path." # Attempting to fix it by recreating the symlink to the permanent script path.
+  fi
+
+  # Always try to create/update the symlink to the canonical script path
   sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
   if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
     print_success "Attempted to create/update 'trust' command symlink." # Attempted to create/update 'trust' command symlink.
@@ -127,11 +136,12 @@ ensure_trust_command_available() {
     print_error "❌ Critical Error: The 'trust' command symlink is not properly set up or accessible." # Critical Error: The 'trust' command symlink is not properly set up or accessible.
     print_error "   This means the 'trust' command will not work." # This means the 'trust' command will not work.
     print_error "   Please try the following manual steps to fix it:" # Please try the following manual steps to fix it:
-    echo -e "${WHITE}   1. Run: sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
-    echo -e "${WHITE}   2. Check your PATH: echo \$PATH${RESET}" # Check your PATH: echo $PATH
+    echo -e "${WHITE}   1. Ensure you are running this script directly from its file path (e.g., 'sudo bash /path/to/your_script.sh')." # Ensure you are running this script directly from its file path (e.g., 'sudo bash /path/to/your_script.sh').
+    echo -e "${WHITE}   2. Run: sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
+    echo -e "${WHITE}   3. Check your PATH: echo \$PATH${RESET}" # Check your PATH: echo $PATH
     echo -e "${WHITE}      Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):${RESET}" # Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):
     echo -e "${WHITE}      export PATH=\"/usr/local/bin:\$PATH\"${RESET}"
-    echo -e "${WHITE}   3. After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)${RESET}" # After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)
+    echo -e "${WHITE}   4. After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)${RESET}" # After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)
     sleep 5 # Give user time to read the critical error
     return 1 # Indicate failure
   fi
