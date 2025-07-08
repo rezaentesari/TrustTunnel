@@ -185,49 +185,60 @@ reset_timer() {
 
   echo -e "${CYAN}Scheduling restart for service: ${WHITE}$service_to_restart${RESET}" # Scheduling restart for service:
   echo ""
-  echo "Please select a time interval for the service restart:" # Please select a time interval for the service restart:
-  echo -e "  ${YELLOW}1)${RESET} ${WHITE}30 minutes${RESET}"
-  echo -e "  ${YELLOW}2)${RESET} ${WHITE}1 hour${RESET}"
-  echo -e "  ${YELLOW}3)${RESET} ${WHITE}2 hours${RESET}"
-  echo -e "  ${YELLOW}4)${RESET} ${WHITE}4 hours${RESET}"
-  echo -e "  ${YELLOW}5)${RESET} ${WHITE}6 hours${RESET}"
-  echo -e "  ${YELLOW}6)${RESET} ${WHITE}12 hours${RESET}"
-  echo -e "  ${YELLOW}7)${RESET} ${WHITE}24 hours${RESET}"
+  echo "Please select a time interval for the service to restart RECURRINGLY:" # Please select a time interval for the service to restart RECURRINGLY:
+  echo -e "  ${YELLOW}1)${RESET} ${WHITE}Every 30 minutes${RESET}"
+  echo -e "  ${YELLOW}2)${RESET} ${WHITE}Every 1 hour${RESET}"
+  echo -e "  ${YELLOW}3)${RESET} ${WHITE}Every 2 hours${RESET}"
+  echo -e "  ${YELLOW}4)${RESET} ${WHITE}Every 4 hours${RESET}"
+  echo -e "  ${YELLOW}5)${RESET} ${WHITE}Every 6 hours${RESET}"
+  echo -e "  ${YELLOW}6)${RESET} ${WHITE}Every 12 hours${RESET}"
+  echo -e "  ${YELLOW}7)${RESET} ${WHITE}Every 24 hours${RESET}"
   echo ""
   read -p "👉 Enter your choice (1-7): " choice # Enter your choice (1-7):
   echo ""
 
-  local minutes_from_now=0
+  local cron_minute=""
+  local cron_hour=""
+  local cron_day_of_month="*"
+  local cron_month="*"
+  local cron_day_of_week="*"
   local description=""
 
   case "$choice" in
     1)
-      minutes_from_now=30
-      description="30 minutes"
+      cron_minute="*/30"
+      cron_hour="*"
+      description="every 30 minutes"
       ;;
     2)
-      minutes_from_now=60
-      description="1 hour"
+      cron_minute="0"
+      cron_hour="*/1" # or simply "*"
+      description="every 1 hour"
       ;;
     3)
-      minutes_from_now=120
-      description="2 hours"
+      cron_minute="0"
+      cron_hour="*/2"
+      description="every 2 hours"
       ;;
     4)
-      minutes_from_now=240
-      description="4 hours"
+      cron_minute="0"
+      cron_hour="*/4"
+      description="every 4 hours"
       ;;
     5)
-      minutes_from_now=360
-      description="6 hours"
+      cron_minute="0"
+      cron_hour="*/6"
+      description="every 6 hours"
       ;;
     6)
-      minutes_from_now=720
-      description="12 hours"
+      cron_minute="0"
+      cron_hour="*/12"
+      description="every 12 hours"
       ;;
     7)
-      minutes_from_now=1440
-      description="24 hours"
+      cron_minute="0"
+      cron_hour="0" # At midnight every day
+      description="every 24 hours (daily at midnight)"
       ;;
     *)
       echo -e "${RED}❌ Invalid choice. No cron job will be scheduled.${RESET}" # Invalid choice. No cron job will be scheduled.
@@ -238,22 +249,13 @@ reset_timer() {
       ;;
   esac
 
-  echo -e "${CYAN}Scheduling '$service_to_restart' to restart in $description...${RESET}" # Scheduling restart for service:
+  echo -e "${CYAN}Scheduling '$service_to_restart' to restart $description...${RESET}" # Scheduling restart for service:
   echo ""
-  # Calculate the target time for the cron job
-  local current_unix_time=$(date +%s)
-  local target_unix_time=$((current_unix_time + minutes_from_now * 60))
-
-  local target_minute=$(date -d "@$target_unix_time" +%M)
-  local target_hour=$(date -d "@$target_unix_time" +%H)
-  local target_day_of_month=$(date -d "@$target_unix_time" +%d)
-  local target_month=$(date -d "@$target_unix_time" +%m)
-  local target_day_of_week=$(date -d "@$target_unix_time" +%w) # 0-6, Sunday is 0
-
+  
   # Define the cron command
   # Using an absolute path for systemctl is good practice in cron jobs
   local cron_command="/usr/bin/systemctl restart $service_to_restart >> /var/log/trusttunnel_cron.log 2>&1"
-  local cron_job_entry="$target_minute $target_hour $target_day_of_month $target_month $target_day_of_week $cron_command # TrustTunnel automated restart for $service_to_restart"
+  local cron_job_entry="$cron_minute $cron_hour $cron_day_of_month $cron_month $cron_day_of_week $cron_command # TrustTunnel automated restart for $service_to_restart"
 
   # --- Start of improved cron job management ---
   local temp_cron_file=$(mktemp)
@@ -271,7 +273,7 @@ reset_timer() {
 
   # Load the modified crontab
   if sudo crontab "$temp_cron_file"; then
-    print_success "Successfully scheduled a restart for '$service_to_restart' in $description." # Successfully scheduled a restart for 'service_to_restart' in description.
+    print_success "Successfully scheduled a restart for '$service_to_restart' $description." # Successfully scheduled a restart for 'service_to_restart' in description.
     echo -e "${CYAN}   The cron job entry looks like this:${RESET}" # The cron job entry looks like this:
     echo -e "${WHITE}   $cron_job_entry${RESET}"
     echo -e "${CYAN}   You can check scheduled cron jobs with: ${WHITE}sudo crontab -l${RESET}" # You can check scheduled cron jobs with: sudo crontab -l
@@ -1193,7 +1195,7 @@ while true; do
                       # Also remove any associated cron jobs for this specific client
                       echo -e "${CYAN}🧹 Removing cron jobs for '$selected_service'...${RESET}" # Removing cron jobs for 'selected_service'...
                       (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for $selected_service$") | sudo crontab -
-                      print_success "Cron jobs for '$selected_service' removed." # Cron jobs for 'selected_service' removed.
+                      print_success "Cron jobs for '$selected_service' removed." # Cron jobs for '$selected_service' removed.
                       break # Exit the select loop
                     else
                       echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}" # Invalid selection. Please enter a valid number.
@@ -1284,3 +1286,4 @@ else
 echo ""
   echo "🛑 Rust is not ready. Skipping the main menu." # Rust is not ready. Skipping the main menu.
 fi
+
