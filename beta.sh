@@ -16,7 +16,7 @@ BOLD_GREEN='\033[1;32m' # Bold Green for menu title
 TRUST_SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$TRUST_SCRIPT_PATH")"
 SETUP_MARKER_FILE="/var/lib/trusttunnel/.setup_complete"
-TRUST_COMMAND_PATH="/usr/local/bin/trust"
+# TRUST_COMMAND_PATH="/usr/local/bin/trust" # Removed as per user request
 
 # --- Helper Functions ---
 
@@ -104,48 +104,46 @@ validate_host() {
 }
 
 # --- Function to ensure 'trust' command symlink exists ---
-ensure_trust_command_available() {
-  echo -e "${CYAN}Checking 'trust' command symlink status...${RESET}" # Checking 'trust' command symlink status...
-
-  local symlink_ok=false
-  local current_symlink_target=$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)
-
-  # Check if the current symlink points to a temporary file descriptor
-  if [[ "$current_symlink_target" == /dev/fd/* ]]; then
-    print_error "❌ Warning: The existing 'trust' symlink points to a temporary location ($current_symlink_target)." # Warning: The existing 'trust' symlink points to a temporary location.
-    print_error "   This can happen if the script was run in a non-standard way (e.g., piped to bash)." # This can happen if the script was run in a non-standard way (e.g., piped to bash).
-    print_error "   Attempting to fix it by recreating the symlink to the permanent script path." # Attempting to fix it by recreating the symlink to the permanent script path.
-  fi
-
-  # Always try to create/update the symlink to the canonical script path
-  sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
-  if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
-    print_success "Attempted to create/update 'trust' command symlink." # Attempted to create/update 'trust' command symlink.
-    # Verify immediately after creation
-    if [ -L "$TRUST_COMMAND_PATH" ] && [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" = "$TRUST_SCRIPT_PATH" ]; then
-      symlink_ok=true
-    fi
-  else
-    print_error "Failed to create/update 'trust' command symlink initially. Check permissions." # Failed to create/update 'trust' command symlink initially. Check permissions.
-  fi
-
-  if [ "$symlink_ok" = true ]; then
-    print_success "'trust' command symlink is correctly set up." # 'trust' command symlink is correctly set up.
-    return 0 # Success
-  else
-    print_error "❌ Critical Error: The 'trust' command symlink is not properly set up or accessible." # Critical Error: The 'trust' command symlink is not properly set up or accessible.
-    print_error "   This means the 'trust' command will not work." # This means the 'trust' command will not work.
-    print_error "   Please try the following manual steps to fix it:" # Please try the following manual steps to fix it:
-    echo -e "${WHITE}   1. Ensure you are running this script directly from its file path (e.g., 'sudo bash /path/to/your_script.sh')." # Ensure you are running this script directly from its file path (e.g., 'sudo bash /path/to/your_script.sh').
-    echo -e "${WHITE}   2. Run: sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
-    echo -e "${WHITE}   3. Check your PATH: echo \$PATH${RESET}" # Check your PATH: echo $PATH
-    echo -e "${WHITE}      Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):${RESET}" # Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):
-    echo -e "${WHITE}      export PATH=\"/usr/local/bin:\$PATH\"${RESET}"
-    echo -e "${WHITE}   4. After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)${RESET}" # After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)
-    sleep 5 # Give user time to read the critical error
-    return 1 # Indicate failure
-  fi
-}
+# This function is now removed as per user request.
+# ensure_trust_command_available() {
+#   echo -e "${CYAN}Checking 'trust' command symlink status...${RESET}"
+#
+#   local symlink_ok=false
+#   local current_symlink_target=$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)
+#
+#   if [[ "$current_symlink_target" == /dev/fd/* ]]; then
+#     print_error "❌ Warning: The existing 'trust' symlink points to a temporary location ($current_symlink_target)."
+#     print_error "   This can happen if the script was run in a non-standard way (e.g., piped to bash)."
+#     print_error "   Attempting to fix it by recreating the symlink to the permanent script path."
+#   fi
+#
+#   sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")"
+#   if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
+#     print_success "Attempted to create/update 'trust' command symlink."
+#     if [ -L "$TRUST_COMMAND_PATH" ] && [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" = "$TRUST_SCRIPT_PATH" ]; then
+#       symlink_ok=true
+#     fi
+#   else
+#     print_error "Failed to create/update 'trust' command symlink initially. Check permissions."
+#   fi
+#
+#   if [ "$symlink_ok" = true ]; then
+#     print_success "'trust' command symlink is correctly set up."
+#     return 0
+#   else
+#     print_error "❌ Critical Error: The 'trust' command symlink is not properly set up or accessible."
+#     print_error "   This means the 'trust' command will not work."
+#     print_error "   Please try the following manual steps to fix it:"
+#     echo -e "${WHITE}   1. Ensure you are running this script directly from its file path (e.g., 'sudo bash /path/to/your_script.sh')."
+#     echo -e "${WHITE}   2. Run: sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
+#     echo -e "${WHITE}   3. Check your PATH: echo \$PATH${RESET}"
+#     echo -e "${WHITE}      Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):${RESET}"
+#     echo -e "${WHITE}      export PATH=\"/usr/local/bin:\$PATH\"${RESET}"
+#     echo -e "${WHITE}   4. After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)${RESET}"
+#     sleep 5
+#     return 1
+#   fi
+# }
 
 
 # --- New: reset_timer function to schedule service restart via cron ---
@@ -240,8 +238,8 @@ reset_timer() {
       ;;
   esac
 
-  echo -e "${CYAN}Scheduling '$service_to_restart' to restart in $description...${RESET}" # Scheduling 'service_to_restart' to restart in description...
-
+  echo -e "${CYAN}Scheduling '$service_to_restart' to restart in $description...${RESET}" # Scheduling restart for service:
+  echo ""
   # Calculate the target time for the cron job
   local current_unix_time=$(date +%s)
   local target_unix_time=$((current_unix_time + minutes_from_now * 60))
@@ -437,7 +435,7 @@ uninstall_trusttunnel_action() {
     (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for") | sudo crontab -
     print_success "Associated cron jobs removed." # Associated cron jobs removed.
 
-    # Remove 'trust' command symlink
+    # Remove 'trust' command symlink (if it was ever created, though it shouldn't be now)
     if [ -L "$TRUST_COMMAND_PATH" ]; then # Check if it's a symbolic link
       echo "🗑️ Removing 'trust' command symlink..." # Removing 'trust' command symlink...
       sudo rm -f "$TRUST_COMMAND_PATH"
@@ -545,8 +543,7 @@ install_trusttunnel_action() {
 
   echo ""
   print_success "TrustTunnel installation complete!" # TrustTunnel installation complete!
-  # Ensure the 'trust' command is available after installation
-  ensure_trust_command_available # Call the new function here
+  # ensure_trust_command_available # Removed as per user request
   echo ""
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
@@ -885,12 +882,11 @@ perform_initial_setup() {
   # Check if initial setup has already been performed
   if [ -f "$SETUP_MARKER_FILE" ]; then
     echo -e "${YELLOW}Initial setup already performed. Skipping prerequisites installation.${RESET}" # Updated message
-    # Still ensure the trust command is available even if initial setup was skipped for dependencies
-    ensure_trust_command_available
+    # ensure_trust_command_available # Removed as per user request
     return 0 # Exit successfully
   fi
 
-  echo -e "${CYAN}Performing initial setup (installing dependencies and setting up 'trust' command)...${RESET}" # Performing initial setup (installing dependencies and setting up 'trust' command)...
+  echo -e "${CYAN}Performing initial setup (installing dependencies)...${RESET}" # Performing initial setup (installing dependencies)...
 
   # Install required tools
   echo -e "${CYAN}Updating package lists and installing dependencies...${RESET}" # Updating package lists and installing dependencies...
@@ -949,19 +945,14 @@ perform_initial_setup() {
     fi
   fi
 
-  # Ensure 'trust' command symlink is created/updated after initial setup
+  # ensure_trust_command_available # Removed as per user request
   if [ "$RUST_IS_READY" = true ]; then
-    if ensure_trust_command_available; then # Call the function and check its return status
-      sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
-      sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (including symlink) succeed
-      print_success "Initial setup complete and 'trust' command is ready." # Initial setup complete and 'trust' command is ready.
-      return 0
-    else
-      print_error "Failed to set up 'trust' command symlink during initial setup. Please fix manually as instructed above." # Failed to set up 'trust' command symlink during initial setup. Please fix manually as instructed above.
-      return 1 # Propagate failure
-    fi
+    sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
+    sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (excluding symlink) succeed
+    print_success "Initial setup complete." # Initial setup complete.
+    return 0
   else
-    print_error "Rust is not ready. Skipping 'trust' command symlink creation and setup marker." # Rust is not ready. Skipping 'trust' command symlink creation and setup marker.
+    print_error "Rust is not ready. Skipping setup marker." # Rust is not ready. Skipping setup marker.
     return 1 # Indicate failure
   fi
   echo ""
@@ -995,7 +986,7 @@ while true; do
   echo -e "\033[0m${WHITE}Reverse tunnel over QUIC ( Based on rstun project)${WHITE}${RESET}" # Reverse tunnel over QUIC ( Based on rstun project)
   draw_green_line
   echo -e "${GREEN}|${RESET}              ${WHITE}TrustTunnel Main Menu${RESET}                  ${GREEN}|${RESET}" # TrustTunnel Main Menu
-  echo -e "${YELLOW}You can also run this script anytime by typing: ${WHITE}trust${RESET}" # New message for 'trust' command
+  # echo -e "${YELLOW}You can also run this script anytime by typing: ${WHITE}trust${RESET}" # Removed as per user request
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
