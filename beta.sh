@@ -104,20 +104,37 @@ validate_host() {
 
 # --- Function to ensure 'trust' command symlink exists ---
 ensure_trust_command_available() {
-  # Check if the symlink exists and points to the correct script
-  if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" != "$TRUST_SCRIPT_PATH" ]; then
-    echo -e "${CYAN}Ensuring 'trust' command symlink is present and correct...${RESET}" # Ensuring 'trust' command symlink is present and correct...
-    sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
-    if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
-      print_success "'trust' command symlink created/updated successfully." # 'trust' command symlink created/updated successfully.
-    else
-      print_error "Failed to create/update 'trust' command symlink. Check permissions." # Failed to create/update 'trust' command symlink. Check permissions.
-      return 1
+  echo -e "${CYAN}Checking 'trust' command symlink status...${RESET}" # Checking 'trust' command symlink status...
+
+  local symlink_ok=false
+
+  # First, try to create/update the symlink
+  sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
+  if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
+    print_success "Attempted to create/update 'trust' command symlink." # Attempted to create/update 'trust' command symlink.
+    # Verify immediately after creation
+    if [ -L "$TRUST_COMMAND_PATH" ] && [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" = "$TRUST_SCRIPT_PATH" ]; then
+      symlink_ok=true
     fi
   else
-    echo -e "${YELLOW}'trust' command symlink already exists and is correctly pointing.${RESET}" # 'trust' command symlink already exists and is correctly pointing.
+    print_error "Failed to create/update 'trust' command symlink initially. Check permissions." # Failed to create/update 'trust' command symlink initially. Check permissions.
   fi
-  return 0
+
+  if [ "$symlink_ok" = true ]; then
+    print_success "'trust' command symlink is correctly set up." # 'trust' command symlink is correctly set up.
+    return 0 # Success
+  else
+    print_error "❌ Critical Error: The 'trust' command symlink is not properly set up or accessible." # Critical Error: The 'trust' command symlink is not properly set up or accessible.
+    print_error "   This means the 'trust' command will not work." # This means the 'trust' command will not work.
+    print_error "   Please try the following manual steps to fix it:" # Please try the following manual steps to fix it:
+    echo -e "${WHITE}   1. Run: sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
+    echo -e "${WHITE}   2. Check your PATH: echo \$PATH${RESET}" # Check your PATH: echo $PATH
+    echo -e "${WHITE}      Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):${RESET}" # Ensure '/usr/local/bin' is in your PATH. If not, add it to your shell's config (e.g., ~/.bashrc, ~/.zshrc):
+    echo -e "${WHITE}      export PATH=\"/usr/local/bin:\$PATH\"${RESET}"
+    echo -e "${WHITE}   3. After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)${RESET}" # After making changes, restart your terminal or run: source ~/.bashrc (or your shell's config file)
+    sleep 5 # Give user time to read the critical error
+    return 1 # Indicate failure
+  fi
 }
 
 
@@ -924,8 +941,15 @@ perform_initial_setup() {
 
   # Ensure 'trust' command symlink is created/updated after initial setup
   if [ "$RUST_IS_READY" = true ]; then
-    ensure_trust_command_available || return 1 # If symlink creation fails, exit
-    sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (including symlink) succeed
+    if ensure_trust_command_available; then # Call the function and check its return status
+      sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
+      sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (including symlink) succeed
+      print_success "Initial setup complete and 'trust' command is ready." # Initial setup complete and 'trust' command is ready.
+      return 0
+    else
+      print_error "Failed to set up 'trust' command symlink during initial setup. Please fix manually as instructed above." # Failed to set up 'trust' command symlink during initial setup. Please fix manually as instructed above.
+      return 1 # Propagate failure
+    fi
   else
     print_error "Rust is not ready. Skipping 'trust' command symlink creation and setup marker." # Rust is not ready. Skipping 'trust' command symlink creation and setup marker.
     return 1 # Indicate failure
@@ -947,16 +971,6 @@ if command -v rustc >/dev/null 2>&1; then
 else
   RUST_IS_READY=false
 fi
-
-# --- Final check for 'trust' command availability before menu ---
-if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" != "$TRUST_SCRIPT_PATH" ]; then
-  print_error "❌ Error: The 'trust' command is not properly set up."
-  print_error "   Please run the following command manually to fix it:"
-  echo -e "${WHITE}   sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
-  print_error "   After running the command, you might need to restart your terminal."
-  exit 1 # Exit the script if the command is not set up, as core functionality relies on it.
-fi
-# --- End of Final check ---
 
 if [ "$RUST_IS_READY" = true ]; then
 while true; do
