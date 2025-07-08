@@ -130,7 +130,7 @@ reset_timer() {
   fi
 
   # --- New Validation: Check if the service exists by checking for its .service file ---
-  if [ ! -f "/etc/systemd/system/$service_to_restart.service" ]; then
+  if [ ! -f "/etc/systemd/system/${service_to_restart}.service" ]; then
     print_error "Service '$service_to_restart' does not exist on this system. Cannot schedule restart." # Service 'service_to_restart' does not exist on this system. Cannot schedule restart.
     echo ""
     echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
@@ -212,11 +212,22 @@ reset_timer() {
   local cron_command="/usr/bin/systemctl restart $service_to_restart >> /var/log/trusttunnel_cron.log 2>&1"
   local cron_job_entry="$target_minute $target_hour $target_day_of_month $target_month $target_day_of_week $cron_command # TrustTunnel automated restart for $service_to_restart"
 
-  # Add the cron job (using a unique identifier to prevent duplicates and for easy removal)
-  # First, remove any existing cron job for this service scheduled by TrustTunnel
-  (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for $service_to_restart$" ; echo "$cron_job_entry") | sudo crontab -
+  # --- Start of improved cron job management ---
+  local temp_cron_file=$(mktemp)
+  if ! sudo crontab -l &> /dev/null; then
+      # If crontab is empty or doesn't exist, create an empty one
+      echo "" | sudo crontab -
+  fi
+  sudo crontab -l > "$temp_cron_file"
 
-  if [ $? -eq 0 ]; then
+  # Remove any existing TrustTunnel cron job for this service
+  sed -i "/# TrustTunnel automated restart for $service_to_restart$/d" "$temp_cron_file"
+
+  # Add the new cron job entry
+  echo "$cron_job_entry" >> "$temp_cron_file"
+
+  # Load the modified crontab
+  if sudo crontab "$temp_cron_file"; then
     print_success "Successfully scheduled a restart for '$service_to_restart' in $description." # Successfully scheduled a restart for 'service_to_restart' in description.
     echo -e "${CYAN}   The cron job entry looks like this:${RESET}" # The cron job entry looks like this:
     echo -e "${WHITE}   $cron_job_entry${RESET}"
@@ -225,6 +236,11 @@ reset_timer() {
   else
     echo -e "${RED}❌ Failed to schedule the cron job. Check permissions or cron service status.${RESET}" # Failed to schedule the cron job. Check permissions or cron service status.
   fi
+
+  # Clean up the temporary file
+  rm -f "$temp_cron_file"
+  # --- End of improved cron job management ---
+
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
@@ -285,21 +301,38 @@ delete_cron_job_action() {
 
   echo -e "${CYAN}Attempting to delete cron job for '$selected_service_name'...${RESET}" # Attempting to delete cron job for 'selected_service_name'...
 
-  # Remove the cron job for the selected service using the unique identifier
-  # This command lists existing cron jobs, filters out the one matching our comment, and replaces the crontab
-  (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for $selected_service_name$") | sudo crontab -
+  # --- Start of improved cron job management for deletion ---
+  local temp_cron_file=$(mktemp)
+  if ! sudo crontab -l &> /dev/null; then
+      # If crontab is empty or doesn't exist, nothing to delete
+      print_error "Crontab is empty or not accessible. Nothing to delete." # Crontab is empty or not accessible. Nothing to delete.
+      rm -f "$temp_cron_file"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
+      read -p ""
+      return 1
+  fi
+  sudo crontab -l > "$temp_cron_file"
 
-  if [ $? -eq 0 ]; then
+  # Remove the cron job for the selected service using the unique identifier
+  sed -i "/# TrustTunnel automated restart for $selected_service_name$/d" "$temp_cron_file"
+
+  # Load the modified crontab
+  if sudo crontab "$temp_cron_file"; then
     print_success "Successfully removed scheduled restart for '$selected_service_name'." # Successfully removed scheduled restart for 'selected_service_name'.
     echo -e "${WHITE}You can verify with: ${YELLOW}sudo crontab -l${RESET}" # You can verify with: sudo crontab -l
   else
     print_error "Failed to delete cron job. It might not exist or there's a permission issue." # Failed to delete cron job. It might not exist or there's a permission issue.
   fi
+
+  # Clean up the temporary file
+  rm -f "$temp_cron_file"
+  # --- End of improved cron job management for deletion ---
+
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
 }
-
 
 # --- Uninstall TrustTunnel Action ---
 uninstall_trusttunnel_action() {
