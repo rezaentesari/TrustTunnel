@@ -345,25 +345,38 @@ uninstall_trusttunnel_action() {
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "🧹 Uninstalling TrustTunnel..." # Uninstalling TrustTunnel...
 
-    # Find and remove all trusttunnel-* services
-    echo "Searching for TrustTunnel services to remove..." # Searching for TrustTunnel services to remove...
-    # List all unit files that start with 'trusttunnel-'
-    mapfile -t trusttunnel_services < <(sudo systemctl list-unit-files --full --no-pager | grep '^trusttunnel-.*\.service' | awk '{print $1}')
+    # --- Explicitly handle trusttunnel.service (server) ---
+    local server_service_name="trusttunnel.service"
+    if systemctl list-unit-files --full --no-pager | grep -q "^$server_service_name"; then
+      echo "🛑 Stopping and disabling TrustTunnel server service ($server_service_name)..." # Stopping and disabling TrustTunnel server service (server_service_name)...
+      sudo systemctl stop "$server_service_name" > /dev/null 2>&1
+      sudo systemctl disable "$server_service_name" > /dev/null 2>&1
+      sudo rm -f "/etc/systemd/system/$server_service_name" > /dev/null 2>&1
+      print_success "TrustTunnel server service removed." # TrustTunnel server service removed.
+    else
+      echo "⚠️ TrustTunnel server service ($server_service_name) not found. Skipping." # TrustTunnel server service (server_service_name) not found. Skipping.
+    fi
 
-    if [ ${#trusttunnel_services[@]} -gt 0 ]; then
-      echo "🛑 Stopping and disabling TrustTunnel services..." # Stopping and disabling TrustTunnel services...
-      for service_file in "${trusttunnel_services[@]}"; do
+    # Find and remove all trusttunnel-* services (clients)
+    echo "Searching for TrustTunnel client services to remove..." # Searching for TrustTunnel client services to remove...
+    # List all unit files that start with 'trusttunnel-'
+    mapfile -t trusttunnel_client_services < <(sudo systemctl list-unit-files --full --no-pager | grep '^trusttunnel-.*\.service' | awk '{print $1}')
+
+    if [ ${#trusttunnel_client_services[@]} -gt 0 ]; then
+      echo "🛑 Stopping and disabling TrustTunnel client services..." # Stopping and disabling TrustTunnel client services...
+      for service_file in "${trusttunnel_client_services[@]}"; do
         local service_name=$(basename "$service_file") # Get just the service name from the file path
         echo "  - Processing $service_name..." # Processing service_name...
         sudo systemctl stop "$service_name" > /dev/null 2>&1
         sudo systemctl disable "$service_name" > /dev/null 2>&1
         sudo rm -f "/etc/systemd/system/$service_name" > /dev/null 2>&1
       done
-      sudo systemctl daemon-reload
-      print_success "All TrustTunnel services have been stopped, disabled, and removed." # All TrustTunnel services have been stopped, disabled, and removed.
+      print_success "All TrustTunnel client services have been stopped, disabled, and removed." # All TrustTunnel client services have been stopped, disabled, and removed.
     else
-      echo "⚠️ No TrustTunnel services found to remove." # No TrustTunnel services found to remove.
+      echo "⚠️ No TrustTunnel client services found to remove." # No TrustTunnel client services found to remove.
     fi
+
+    sudo systemctl daemon-reload # Reload daemon after removing services
 
     # Remove rstun folder if exists
     if [ -d "rstun" ]; then
@@ -544,7 +557,7 @@ add_new_server_action() {
   if [ -d "$cert_path" ]; then
     print_success "SSL certificate for $domain already exists. Skipping Certbot." # SSL certificate for domain already exists. Skipping Certbot.
   else
-    echo -e "${CYYAN}🔐 Requesting SSL certificate with Certbot...${RESET}" # Requesting SSL certificate with Certbot...
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}" # Requesting SSL certificate with Certbot...
     if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
       print_success "SSL certificate obtained successfully." # SSL certificate obtained successfully.
     else
