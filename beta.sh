@@ -102,10 +102,10 @@ validate_host() {
   fi
 }
 
-# --- New: Function to ensure 'trust' command symlink exists ---
+# --- Function to ensure 'trust' command symlink exists ---
 ensure_trust_command_available() {
   # Check if the symlink exists and points to the correct script
-  if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH")" != "$TRUST_SCRIPT_PATH" ]; then
+  if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" != "$TRUST_SCRIPT_PATH" ]; then
     echo -e "${CYAN}Ensuring 'trust' command symlink is present and correct...${RESET}" # Ensuring 'trust' command symlink is present and correct...
     sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
     if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
@@ -252,7 +252,7 @@ reset_timer() {
     echo -e "${CYAN}   You can check scheduled cron jobs with: ${WHITE}sudo crontab -l${RESET}" # You can check scheduled cron jobs with: sudo crontab -l
     echo -e "${CYAN}   Logs will be written to: ${WHITE}/var/log/trusttunnel_cron.log${RESET}" # Logs will be written to: /var/log/trusttunnel_cron.log
   else
-    echo -e "${RED}❌ Failed to schedule the cron job. Check permissions or cron service status.${RESET}" # Failed to schedule the cron job. Check permissions or cron service status.
+    print_error "Failed to schedule the cron job. Check permissions or cron service status.${RESET}" # Failed to schedule the cron job. Check permissions or cron service status.
   fi
 
   # Clean up the temporary file
@@ -340,12 +340,12 @@ delete_cron_job_action() {
     print_success "Successfully removed scheduled restart for '$selected_service_name'." # Successfully removed scheduled restart for 'selected_service_name'.
     echo -e "${WHITE}You can verify with: ${YELLOW}sudo crontab -l${RESET}" # You can verify with: sudo crontab -l
   else
-    print_error "Failed to delete cron job. It might not exist or there's a permission issue." # Failed to delete cron job. It might not exist or there's a permission issue.
+    print_error "Failed to delete cron job. It might not exist or there's a permission issue.${RESET}" # Failed to delete cron job. It might not exist or there's a permission issue.
   fi
 
   # Clean up the temporary file
   rm -f "$temp_cron_file"
-  # --- End of improved cron job management for deletion ---
+  # --- End of improved cron job management ---
 
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
@@ -948,6 +948,16 @@ else
   RUST_IS_READY=false
 fi
 
+# --- Final check for 'trust' command availability before menu ---
+if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" != "$TRUST_SCRIPT_PATH" ]; then
+  print_error "❌ Error: The 'trust' command is not properly set up."
+  print_error "   Please run the following command manually to fix it:"
+  echo -e "${WHITE}   sudo ln -sf \"$TRUST_SCRIPT_PATH\" \"$TRUST_COMMAND_PATH\"${RESET}"
+  print_error "   After running the command, you might need to restart your terminal."
+  exit 1 # Exit the script if the command is not set up, as core functionality relies on it.
+fi
+# --- End of Final check ---
+
 if [ "$RUST_IS_READY" = true ]; then
 while true; do
   # Clear terminal and show logo
@@ -1045,7 +1055,7 @@ while true; do
                 fi
                 echo ""
                 echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
-                read -p ""
+                  read -p ""
               ;;
               4) # Schedule server restart
                 reset_timer "trusttunnel" # Pass the server service name directly
