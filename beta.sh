@@ -102,6 +102,24 @@ validate_host() {
   fi
 }
 
+# --- New: Function to ensure 'trust' command symlink exists ---
+ensure_trust_command_available() {
+  # Check if the symlink exists and points to the correct script
+  if [ ! -L "$TRUST_COMMAND_PATH" ] || [ "$(readlink "$TRUST_COMMAND_PATH")" != "$TRUST_SCRIPT_PATH" ]; then
+    echo -e "${CYAN}Ensuring 'trust' command symlink is present and correct...${RESET}" # Ensuring 'trust' command symlink is present and correct...
+    sudo mkdir -p "$(dirname "$TRUST_COMMAND_PATH")" # Ensure /usr/local/bin exists
+    if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
+      print_success "'trust' command symlink created/updated successfully." # 'trust' command symlink created/updated successfully.
+    else
+      print_error "Failed to create/update 'trust' command symlink. Check permissions." # Failed to create/update 'trust' command symlink. Check permissions.
+      return 1
+    fi
+  else
+    echo -e "${YELLOW}'trust' command symlink already exists and is correctly pointing.${RESET}" # 'trust' command symlink already exists and is correctly pointing.
+  fi
+  return 0
+}
+
 
 # --- New: reset_timer function to schedule service restart via cron ---
 reset_timer() {
@@ -500,6 +518,8 @@ install_trusttunnel_action() {
 
   echo ""
   print_success "TrustTunnel installation complete!" # TrustTunnel installation complete!
+  # Ensure the 'trust' command is available after installation
+  ensure_trust_command_available # Call the new function here
   echo ""
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
@@ -837,7 +857,9 @@ EOF
 perform_initial_setup() {
   # Check if initial setup has already been performed
   if [ -f "$SETUP_MARKER_FILE" ]; then
-    echo -e "${YELLOW}Initial setup already performed. Skipping prerequisites installation and symlink creation.${RESET}" # Initial setup already performed. Skipping prerequisites installation and symlink creation.
+    echo -e "${YELLOW}Initial setup already performed. Skipping prerequisites installation.${RESET}" # Updated message
+    # Still ensure the trust command is available even if initial setup was skipped for dependencies
+    ensure_trust_command_available
     return 0 # Exit successfully
   fi
 
@@ -896,25 +918,20 @@ perform_initial_setup() {
     else
       # Error message if installation fails.
       echo "❌ An error occurred during Rust installation. Please check your internet connection or try again." # An error occurred during Rust installation. Please check your internet connection or try again.
+      return 1 # Indicate failure
     fi
   fi
 
-  # Create 'trust' command symlink if Rust is ready
+  # Ensure 'trust' command symlink is created/updated after initial setup
   if [ "$RUST_IS_READY" = true ]; then
-    echo -e "${CYAN}Creating 'trust' command symlink...${RESET}" # Creating 'trust' command symlink...
-    sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
-    if sudo ln -sf "$TRUST_SCRIPT_PATH" "$TRUST_COMMAND_PATH"; then
-      print_success "'trust' command created successfully. You can now run this script by typing 'trust'." # 'trust' command created successfully. You can now run this script by typing 'trust'.
-      sudo touch "$SETUP_MARKER_FILE" # Create marker file to indicate setup is complete
-    else
-      print_error "Failed to create 'trust' command symlink. Check permissions." # Failed to create 'trust' command symlink. Check permissions.
-      return 1 # Indicate failure
-    fi
+    ensure_trust_command_available || return 1 # If symlink creation fails, exit
+    sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (including symlink) succeed
   else
-    print_error "Rust is not ready. Skipping 'trust' command symlink creation." # Rust is not ready. Skipping 'trust' command symlink creation.
+    print_error "Rust is not ready. Skipping 'trust' command symlink creation and setup marker." # Rust is not ready. Skipping 'trust' command symlink creation and setup marker.
     return 1 # Indicate failure
   fi
   echo ""
+  return 0
 }
 
 
