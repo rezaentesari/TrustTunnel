@@ -1742,6 +1742,7 @@ while true; do
       ;;
       
     3)
+    while true; do 
       # Direct tunnel menu (copy of reverse tunnel with modified names)
       clear
       echo ""
@@ -1749,8 +1750,8 @@ while true; do
       echo -e "${CYAN}        🌐 Choose Direct Tunnel Mode${RESET}"
       draw_line "$GREEN" "=" 40
       echo ""
-      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server${RESET}"
-      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client${RESET}"
+      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server(Kharej)${RESET}"
+      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client(Iran)${RESET}"
       echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}"
       echo ""
       draw_line "$GREEN" "-" 40
@@ -1992,6 +1993,7 @@ while true; do
           read -p ""
           ;;
       esac
+      done
       ;;
     4) # New Certificate Management option
       certificate_management_menu
