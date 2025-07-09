@@ -569,46 +569,81 @@ add_new_server_action() {
     return # Use return instead of continue in a function
   fi
 
-  # لیست کردن certificate های موجود
-  local certs_dir="/etc/letsencrypt/live"
-  if [ ! -d "$certs_dir" ]; then
-    echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
-    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  local tls_enabled="true" # Default to true (recommended)
+  echo -e "${CYAN}🔒 TLS/SSL Mode Configuration:${RESET}"
+  echo -e "  (It's highly recommended to enable TLS for secure communication.)"
+  echo -e "👉 ${WHITE}Do you want to enable TLS/SSL for this server? (Y/n, default: Y):${RESET} "
+  read -p "" tls_choice_input
+  tls_choice_input=${tls_choice_input:-Y} # Default to Y if empty
+
+  if [[ "$tls_choice_input" =~ ^[Nn]$ ]]; then
+    tls_enabled="false"
+    print_error "TLS/SSL is disabled. Communication will not be encrypted."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue without TLS...${RESET}"
     read -p ""
-    return
+  else
+    print_success "TLS/SSL is enabled. Proceeding with certificate configuration."
+    echo ""
   fi
 
-  # Find directories under /etc/letsencrypt/live/ that are not 'README'
-  # and get their base names (which are the domain names)
-  mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+  local cert_path=""
+  local cert_args=""
 
-  if [ ${#cert_domains[@]} -eq 0 ]; then
-    echo -e "${RED}❌ No SSL certificates found.${RESET}"
-    echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
-    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-    read -p ""
-    return
-  fi
-
-  echo -e "${CYAN}Available SSL Certificates:${RESET}"
-  for i in "${!cert_domains[@]}"; do
-    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
-  done
-
-  local cert_choice
-  while true; do
-    echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
-    read -p "" cert_choice
-    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
-      break
-    else
-      print_error "Invalid selection. Please enter a valid number."
+  if [[ "$tls_enabled" == "true" ]]; then
+    # لیست کردن certificate های موجود
+    local certs_dir="/etc/letsencrypt/live"
+    if [ ! -d "$certs_dir" ]; then
+      echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
     fi
-  done
-  local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
-  local cert_path="$certs_dir/$selected_domain_name"
-  echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
-  echo ""
+
+    # Find directories under /etc/letsencrypt/live/ that are not 'README'
+    # and get their base names (which are the domain names)
+    mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+    if [ ${#cert_domains[@]} -eq 0 ]; then
+      echo -e "${RED}❌ No SSL certificates found.${RESET}"
+      echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    echo -e "${CYAN}Available SSL Certificates:${RESET}"
+    for i in "${!cert_domains[@]}"; do
+      echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
+    done
+
+    local cert_choice
+    while true; do
+      echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+      read -p "" cert_choice
+      if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
+        break
+      else
+        print_error "Invalid selection. Please enter a valid number."
+      fi
+    done
+    local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+    cert_path="$certs_dir/$selected_domain_name"
+    echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
+    echo ""
+
+    if [ ! -d "$cert_path" ]; then
+      echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+    cert_args="--cert \"$cert_path/fullchain.pem\" --key \"$cert_path/privkey.pem\""
+  else
+    echo -e "${YELLOW}Skipping SSL certificate selection as TLS is disabled.${RESET}"
+    echo ""
+  fi
 
   echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
   echo -e "  (Default tunneling address port is 6060)"
@@ -685,7 +720,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" $cert_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -742,7 +777,6 @@ add_new_client_action() {
     echo -e "${RED}❌ Service with this name already exists.${RESET}" # Service with this name already exists.
     echo ""
     echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
-    read -p ""
     return # Return to menu
   fi
 
@@ -968,47 +1002,85 @@ add_new_direct_server_action() {
     return
   fi
 
-  # لیست کردن certificate های موجود
-  local certs_dir="/etc/letsencrypt/live"
-  if [ ! -d "$certs_dir" ]; then
-    echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
-    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  local tls_enabled="true" # Default to true (recommended)
+  echo -e "${CYAN}🔒 TLS/SSL Mode Configuration:${RESET}"
+  echo -e "  (It's highly recommended to enable TLS for secure communication.)"
+  echo -e "👉 ${WHITE}Do you want to enable TLS/SSL for this server? (Y/n, default: Y):${RESET} "
+  read -p "" tls_choice_input
+  tls_choice_input=${tls_choice_input:-Y} # Default to Y if empty
+
+  if [[ "$tls_choice_input" =~ ^[Nn]$ ]]; then
+    tls_enabled="false"
+    print_error "TLS/SSL is disabled. Communication will not be encrypted."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue without TLS...${RESET}"
     read -p ""
-    return
+  else
+    print_success "TLS/SSL is enabled. Proceeding with certificate configuration."
+    echo ""
   fi
 
-  mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+  local cert_path=""
+  local cert_args=""
 
-  if [ ${#cert_domains[@]} -eq 0 ]; then
-    echo -e "${RED}❌ No SSL certificates found.${RESET}"
-    echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
-    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-    read -p ""
-    return
-  fi
-
-  echo -e "${CYAN}Available SSL Certificates:${RESET}"
-  for i in "${!cert_domains[@]}"; do
-    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
-  done
-
-  local cert_choice
-  while true; do
-    echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
-    read -p "" cert_choice
-    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
-      break
-    else
-      print_error "Invalid selection. Please enter a valid number."
+  if [[ "$tls_enabled" == "true" ]]; then
+    # لیست کردن certificate های موجود
+    local certs_dir="/etc/letsencrypt/live"
+    if [ ! -d "$certs_dir" ]; then
+      echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
     fi
-  done
-  local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
-  local cert_path="$certs_dir/$selected_domain_name"
-  echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
-  echo ""
+
+    mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+    if [ ${#cert_domains[@]} -eq 0 ]; then
+      echo -e "${RED}❌ No SSL certificates found.${RESET}"
+      echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    echo -e "${CYAN}Available SSL Certificates:${RESET}"
+    for i in "${!cert_domains[@]}"; do
+      echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
+    done
+
+    local cert_choice
+    while true; do
+      echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+      read -p "" cert_choice
+      if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
+        break
+      else
+        print_error "Invalid selection. Please enter a valid number."
+      fi
+    done
+    local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+    cert_path="$certs_dir/$selected_domain_name"
+    echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
+    echo ""
+
+    if [ ! -d "$cert_path" ]; then
+      echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+    cert_args="--cert \"$cert_path/fullchain.pem\" --key \"$cert_path/privkey.pem\""
+  else
+    echo -e "${YELLOW}Skipping SSL certificate selection as TLS is disabled.${RESET}"
+    echo ""
+  fi
 
   # Proceed only if certificate acquisition was successful or it already existed
-  if [ -d "$cert_path" ]; then
+  # The check for cert_path existence is now inside the tls_enabled block
+  # so this outer if is no longer needed.
+  # if [ -d "$cert_path" ] || [[ "$tls_enabled" == "false" ]]; then # This condition is now implicitly handled by the above logic
+
     echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
     echo -e "  (Default listen port is 8800)"
     
@@ -1084,7 +1156,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port $cert_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -1101,9 +1173,9 @@ EOF
     sudo systemctl start trusttunnel-direct.service > /dev/null 2>&1
 
     print_success "Direct TrustTunnel service started successfully!"
-  else
-    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
-  fi
+  # else # This else block is no longer needed due to the early return in the TLS section
+  #   echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  # fi
 
 
 
