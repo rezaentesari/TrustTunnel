@@ -570,7 +570,7 @@ add_new_server_action() {
   fi
 
   # لیست کردن certificate های موجود
-  certs_dir="/etc/letsencrypt/live"
+  local certs_dir="/etc/letsencrypt/live"
   if [ ! -d "$certs_dir" ]; then
     echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
     echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
@@ -578,32 +578,36 @@ add_new_server_action() {
     return
   fi
 
-  certs=("$certs_dir"/*)
-  if [ ${#certs[@]} -eq 0 ]; then
-    echo -e "${RED}❌ No certificates found in $certs_dir.${RESET}"
+  # Find directories under /etc/letsencrypt/live/ that are not 'README'
+  # and get their base names (which are the domain names)
+  mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+  if [ ${#cert_domains[@]} -eq 0 ]; then
+    echo -e "${RED}❌ No SSL certificates found.${RESET}"
+    echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
     echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
     read -p ""
     return
   fi
 
   echo -e "${CYAN}Available SSL Certificates:${RESET}"
-  for i in "${!certs[@]}"; do
-    cert_name=$(basename "${certs[$i]}")
-    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}$cert_name${RESET}"
+  for i in "${!cert_domains[@]}"; do
+    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
   done
 
   local cert_choice
   while true; do
     echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
     read -p "" cert_choice
-    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#certs[@]} ]; then
+    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
       break
     else
       print_error "Invalid selection. Please enter a valid number."
     fi
   done
-  cert_path="${certs[$((cert_choice-1))]}"
-  echo -e "${GREEN}Selected certificate: $cert_path${RESET}"
+  local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+  local cert_path="$certs_dir/$selected_domain_name"
+  echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
   echo ""
 
   echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
@@ -681,7 +685,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -698,7 +702,19 @@ EOF
   sudo systemctl start trusttunnel.service > /dev/null 2>&1
 
   print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
+
+
   echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel.service
+  fi
+
+  echo ""
+  
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
 }
@@ -820,7 +836,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -837,7 +853,14 @@ EOF
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Client '$client_name' started as $service_name" # Client 'client_name' started as service_name
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
 
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
@@ -935,7 +958,7 @@ add_new_direct_server_action() {
   echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
   draw_line "$CYAN" "=" 40
   echo ""
-
+  
   if [ ! -f "rstun/rstund" ]; then
     echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
     echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
@@ -945,51 +968,44 @@ add_new_direct_server_action() {
     return
   fi
 
-  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
-  echo -e "  (e.g., server.example.com)"
-  
-  # Validate Domain
-  local domain
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} "
-    read -p "" domain
-    if validate_host "$domain"; then
-      break
-    else
-      print_error "Invalid domain or IP address format. Please try again."
-    fi
-  done
-  echo ""
-
-  # Validate Email
-  local email
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
-    read -p "" email
-    if validate_email "$email"; then
-      break
-    else
-      print_error "Invalid email format. Please try again."
-    fi
-  done
-  echo ""
-
-  local cert_path="/etc/letsencrypt/live/$domain"
-
-  if [ -d "$cert_path" ]; then
-    print_success "SSL certificate for $domain already exists. Skipping Certbot."
-  else
-    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
-    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
-      print_success "SSL certificate obtained successfully."
-    else
-      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}"
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-      read -p ""
-      return
-    fi
+  # لیست کردن certificate های موجود
+  local certs_dir="/etc/letsencrypt/live"
+  if [ ! -d "$certs_dir" ]; then
+    echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
   fi
+
+  mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+  if [ ${#cert_domains[@]} -eq 0 ]; then
+    echo -e "${RED}❌ No SSL certificates found.${RESET}"
+    echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}Available SSL Certificates:${RESET}"
+  for i in "${!cert_domains[@]}"; do
+    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
+  done
+
+  local cert_choice
+  while true; do
+    echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+    read -p "" cert_choice
+    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
+      break
+    else
+      print_error "Invalid selection. Please enter a valid number."
+    fi
+  done
+  local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+  local cert_path="$certs_dir/$selected_domain_name"
+  echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
+  echo ""
 
   # Proceed only if certificate acquisition was successful or it already existed
   if [ -d "$cert_path" ]; then
@@ -1008,6 +1024,35 @@ add_new_direct_server_action() {
         print_error "Invalid port number. Please enter a number between 1 and 65535."
       fi
     done
+    echo -e "  (Default TCP upstream port is 8800)"
+    # Validate TCP Upstream Port
+    local tcp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 2030):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
+      read -p "" tcp_upstream_port_input
+      tcp_upstream_port=${tcp_upstream_port_input:-2030} # Apply default if empty
+      if validate_port "$tcp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+    done
+
+    echo -e "  (Default UDP upstream port is 8800)"
+    # Validate UDP Upstream Port
+    local udp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 2040):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
+      read -p "" udp_upstream_port_input
+      udp_upstream_port=${udp_upstream_port_input:-2040} # Apply default if empty
+      if validate_port "$udp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+      done
+
+
 
     echo -e "👉 ${WHITE}Enter password:${RESET} "
     read -p "" password
@@ -1039,7 +1084,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -1058,6 +1103,18 @@ EOF
     print_success "Direct TrustTunnel service started successfully!"
   else
     echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  fi
+
+
+
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel-direct.service
   fi
 
   echo ""
@@ -1094,7 +1151,7 @@ add_new_direct_client_action() {
   fi
 
   echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
-  echo -e "  (e.g., server.yourdomain.com:8800)"
+  echo -e "  (e.x., server.yourdomain.com:8800)"
   
   # Validate Server Address
   local server_addr
@@ -1183,7 +1240,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -1200,7 +1257,14 @@ EOF
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Direct client '$client_name' started as $service_name"
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
 
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
@@ -1394,7 +1458,7 @@ while true; do
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
-  echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
+  echo -e "${MAGENTA}1) Install Rstun${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
   echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
   echo -e "${YELLOW}4) Certificate management${RESET}" # New: Certificate management
@@ -1407,6 +1471,7 @@ while true; do
       install_trusttunnel_action
       ;;
     2)
+   while true; do 
     clear # Clear screen for a fresh menu display
     echo ""
     draw_line "$GREEN" "=" 40 # Top border
@@ -1673,8 +1738,11 @@ while true; do
           read -p ""
           ;;
       esac
+      done
       ;;
+      
     3)
+    while true; do 
       # Direct tunnel menu (copy of reverse tunnel with modified names)
       clear
       echo ""
@@ -1682,8 +1750,8 @@ while true; do
       echo -e "${CYAN}        🌐 Choose Direct Tunnel Mode${RESET}"
       draw_line "$GREEN" "=" 40
       echo ""
-      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server${RESET}"
-      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client${RESET}"
+      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server(Kharej)${RESET}"
+      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client(Iran)${RESET}"
       echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}"
       echo ""
       draw_line "$GREEN" "-" 40
@@ -1736,7 +1804,7 @@ while true; do
                   echo -e "${YELLOW}🛑 Stopping and deleting trusttunnel-direct.service...${RESET}"
                   sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
                   sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
-                  sudo rm -f "$service_file" > /dev/null 2>&1
+                  sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
                   sudo systemctl daemon-reload > /dev/null 2>&1
                   print_success "Direct service deleted."
                 else
@@ -1925,6 +1993,7 @@ while true; do
           read -p ""
           ;;
       esac
+      done
       ;;
     4) # New Certificate Management option
       certificate_management_menu
