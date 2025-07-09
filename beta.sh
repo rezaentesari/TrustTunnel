@@ -153,7 +153,7 @@ reset_timer() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
+  echo -e "${CYAN}     ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -296,7 +296,7 @@ delete_cron_job_action() {
   clear
   echo ""
   draw_line "$RED" "=" 40
-  echo -e "${RED}        🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
+  echo -e "${RED}     🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
   draw_line "$RED" "=" 40
   echo ""
 
@@ -464,7 +464,7 @@ install_trusttunnel_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
+  echo -e "${CYAN}     📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -556,7 +556,7 @@ add_new_server_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
+  echo -e "${CYAN}     ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -732,7 +732,7 @@ add_new_client_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
+  echo -e "${CYAN}     ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -961,6 +961,303 @@ perform_initial_setup() {
   return 0
 }
 
+# --- Add New Direct Server Action ---
+add_new_direct_server_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  if [ ! -f "rstun/rstund" ]; then
+    echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
+    echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
+  echo -e "  (e.g., server.example.com)"
+  
+  # Validate Domain
+  local domain
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} "
+    read -p "" domain
+    if validate_host "$domain"; then
+      break
+    else
+      print_error "Invalid domain or IP address format. Please try again."
+    fi
+  done
+  echo ""
+
+  # Validate Email
+  local email
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
+    read -p "" email
+    if validate_email "$email"; then
+      break
+    else
+      print_error "Invalid email format. Please try again."
+    fi
+  done
+  echo ""
+
+  local cert_path="/etc/letsencrypt/live/$domain"
+
+  if [ -d "$cert_path" ]; then
+    print_success "SSL certificate for $domain already exists. Skipping Certbot."
+  else
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
+    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
+      print_success "SSL certificate obtained successfully."
+    else
+      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+  fi
+
+  # Proceed only if certificate acquisition was successful or it already existed
+  if [ -d "$cert_path" ]; then
+    echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
+    echo -e "  (Default listen port is 8800)"
+    
+    # Validate Listen Port
+    local listen_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter listen port (1-65535, default 8800):${RESET} "
+      read -p "" listen_port_input
+      listen_port=${listen_port_input:-8800}
+      if validate_port "$listen_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535."
+      fi
+    done
+
+    echo -e "👉 ${WHITE}Enter password:${RESET} "
+    read -p "" password
+    echo ""
+
+    if [[ -z "$password" ]]; then
+      echo -e "${RED}❌ Password cannot be empty!${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    local service_file="/etc/systemd/system/trusttunnel-direct.service"
+
+    if systemctl is-active --quiet trusttunnel-direct.service || systemctl is-enabled --quiet trusttunnel-direct.service; then
+      echo -e "${YELLOW}🛑 Stopping existing Direct Trusttunnel service...${RESET}"
+      sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
+      echo -e "${YELLOW}🗑️ Disabling and removing existing Direct Trusttunnel service...${RESET}"
+      sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
+      sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
+      sudo systemctl daemon-reload > /dev/null 2>&1
+      print_success "Existing Direct TrustTunnel service removed."
+    fi
+
+    cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+    sudo systemctl daemon-reload
+
+    echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel service...${RESET}"
+    sudo systemctl enable trusttunnel-direct.service > /dev/null 2>&1
+    sudo systemctl start trusttunnel-direct.service > /dev/null 2>&1
+
+    print_success "Direct TrustTunnel service started successfully!"
+  else
+    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel-direct.service
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- Add New Direct Client Action ---
+add_new_direct_client_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Client${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  # Prompt for the client name
+  echo -e "👉 ${WHITE}Enter client name (e.g., client1, client2):${RESET} "
+  read -p "" client_name
+  echo ""
+
+  # Construct the service name based on the client name
+  service_name="trusttunnel-direct-client-$client_name"
+  # Define the path for the systemd service file
+  service_file="/etc/systemd/system/${service_name}.service"
+
+  # Check if a service with the given name already exists
+  if [ -f "$service_file" ]; then
+    echo -e "${RED}❌ Service with this name already exists.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
+  echo -e "  (e.g., server.yourdomain.com:8800)"
+  
+  # Validate Server Address
+  local server_addr
+  while true; do
+    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} "
+    read -p "" server_addr_input
+    # Split into host and port for validation
+    local host_part=$(echo "$server_addr_input" | cut -d':' -f1)
+    local port_part=$(echo "$server_addr_input" | cut -d':' -f2)
+
+    if validate_host "$host_part" && validate_port "$port_part"; then
+      server_addr="$server_addr_input"
+      break
+    else
+      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)."
+    fi
+  done
+  echo ""
+
+  echo -e "${CYAN}📡 Tunnel Mode:${RESET}"
+  echo -e "  (tcp/udp/both)"
+  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} "
+  read -p "" tunnel_mode
+  echo ""
+
+  echo -e "🔑 ${WHITE}Password:${RESET} "
+  read -p "" password
+  echo ""
+
+  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}"
+  
+  local port_count
+  while true; do
+    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} "
+    read -p "" port_count_input
+    if [[ "$port_count_input" =~ ^[0-9]+$ ]] && (( port_count_input >= 0 )); then
+      port_count=$port_count_input
+      break
+    else
+      print_error "Invalid input. Please enter a non-negative number for port count."
+    fi
+  done
+  echo ""
+  
+  mappings=""
+  for ((i=1; i<=port_count; i++)); do
+    local port
+    while true; do
+      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} "
+      read -p "" port_input
+      if validate_port "$port_input"; then
+        port="$port_input"
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535."
+      fi
+    done
+    mapping="OUT^0.0.0.0:$port^:$port"
+    [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
+    echo ""
+  done
+
+  # Determine the mapping arguments based on the tunnel_mode
+  mapping_args=""
+  case "$tunnel_mode" in
+    "tcp")
+      mapping_args="--tcp-mappings \"$mappings\""
+      ;;
+    "udp")
+      mapping_args="--udp-mappings \"$mappings\""
+      ;;
+    "both")
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+    *)
+      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}"
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+  esac
+
+  # Create the systemd service file
+  cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Client - $client_name
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+  sudo systemctl daemon-reload
+
+  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}"
+  sudo systemctl enable "$service_name" > /dev/null 2>&1
+  sudo systemctl start "$service_name" > /dev/null 2>&1
+
+  print_success "Direct client '$client_name' started as $service_name"
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
 
 # --- Main Script Execution ---
 set -e # Exit immediately if a command exits with a non-zero status
@@ -1391,7 +1688,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 draw_line "$CYAN" "=" 40
                 echo ""
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
-                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
                   echo -e "${RED}❌ No direct clients found.${RESET}"
                   echo ""
@@ -1425,7 +1722,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 draw_line "$CYAN" "=" 40
                 echo ""
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
-                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
                   echo -e "${RED}❌ No direct clients found.${RESET}"
                   echo ""
@@ -1468,7 +1765,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 draw_line "$CYAN" "=" 40
                 echo ""
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
-                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
                   echo -e "${RED}❌ No direct clients found to schedule. Please add a client first.${RESET}"
                   echo ""
