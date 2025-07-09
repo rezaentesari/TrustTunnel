@@ -122,7 +122,7 @@ validate_host() {
 #     print_success "Attempted to create/update 'trust' command symlink."
 #     if [ -L "$TRUST_COMMAND_PATH" ] && [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" = "$TRUST_SCRIPT_PATH" ]; then
 #       symlink_ok=true
-#     fi
+#     Fİ
 #   else
 #     print_error "Failed to create/update 'trust' command symlink initially. Check permissions."
 #   fi
@@ -153,7 +153,7 @@ reset_timer() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
+  echo -e "${CYAN}     ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -186,13 +186,13 @@ reset_timer() {
   echo -e "${CYAN}Scheduling restart for service: ${WHITE}$service_to_restart${RESET}" # Scheduling restart for service:
   echo ""
   echo "Please select a time interval for the service to restart RECURRINGLY:" # Please select a time interval for the service to restart RECURRINGLY:
-  echo -e "  ${YELLOW}1)${RESET} ${WHITE}Every 30 minutes${RESET}"
-  echo -e "  ${YELLOW}2)${RESET} ${WHITE}Every 1 hour${RESET}"
-  echo -e "  ${YELLOW}3)${RESET} ${WHITE}Every 2 hours${RESET}"
-  echo -e "  ${YELLOW}4)${RESET} ${WHITE}Every 4 hours${RESET}"
-  echo -e "  ${YELLOW}5)${RESET} ${WHITE}Every 6 hours${RESET}"
-  echo -e "  ${YELLOW}6)${RESET} ${WHITE}Every 12 hours${RESET}"
-  echo -e "  ${YELLOW}7)${RESET} ${WHITE}Every 24 hours${RESET}"
+  echo -e "  ${YELLOW}1)${RESET} ${WHITE}Every 30 minutes${RESET}"
+  echo -e "  ${YELLOW}2)${RESET} ${WHITE}Every 1 hour${RESET}"
+  echo -e "  ${YELLOW}3)${RESET} ${WHITE}Every 2 hours${RESET}"
+  echo -e "  ${YELLOW}4)${RESET} ${WHITE}Every 4 hours${RESET}"
+  echo -e "  ${YELLOW}5)${RESET} ${WHITE}Every 6 hours${RESET}"
+  echo -e "  ${YELLOW}6)${RESET} ${WHITE}Every 12 hours${RESET}"
+  echo -e "  ${YELLOW}7)${RESET} ${WHITE}Every 24 hours${RESET}"
   echo ""
   read -p "👉 Enter your choice (1-7): " choice # Enter your choice (1-7):
   echo ""
@@ -296,7 +296,7 @@ delete_cron_job_action() {
   clear
   echo ""
   draw_line "$RED" "=" 40
-  echo -e "${RED}        🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
+  echo -e "${RED}     🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
   draw_line "$RED" "=" 40
   echo ""
 
@@ -411,7 +411,7 @@ uninstall_trusttunnel_action() {
       echo "🛑 Stopping and disabling TrustTunnel client services..." # Stopping and disabling TrustTunnel client services...
       for service_file in "${trusttunnel_client_services[@]}"; do
         local service_name=$(basename "$service_file") # Get just the service name from the file path
-        echo "  - Processing $service_name..." # Processing service_name...
+        echo "  - Processing $service_name..." # Processing service_name...
         sudo systemctl stop "$service_name" > /dev/null 2>&1
         sudo systemctl disable "$service_name" > /dev/null 2>&1
         sudo rm -f "/etc/systemd/system/$service_name" > /dev/null 2>&1
@@ -464,7 +464,7 @@ install_trusttunnel_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
+  echo -e "${CYAN}     📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -556,7 +556,7 @@ add_new_server_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
+  echo -e "${CYAN}     ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -569,131 +569,158 @@ add_new_server_action() {
     return # Use return instead of continue in a function
   fi
 
-  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}" # Domain and Email for SSL Certificate:
-  echo -e "  (e.g., server.example.com)"
-  
-  # Validate Domain
-  local domain
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} " # Please enter your domain pointed to this server:
-    read -p "" domain
-    if validate_host "$domain"; then
-      break
-    else
-      print_error "Invalid domain or IP address format. Please try again." # Invalid domain or IP address format. Please try again.
-    fi
-  done
-  echo ""
+  local tls_enabled="true" # Default to true (recommended)
+  echo -e "${CYAN}🔒 TLS/SSL Mode Configuration:${RESET}"
+  echo -e "  (It's highly recommended to enable TLS for secure communication.)"
+  echo -e "👉 ${WHITE}Do you want to enable TLS/SSL for this server? (Y/n, default: Y):${RESET} "
+  read -p "" tls_choice_input
+  tls_choice_input=${tls_choice_input:-Y} # Default to Y if empty
 
-  # Validate Email
-  local email
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your email:${RESET} " # Please enter your email:
-    read -p "" email
-    if validate_email "$email"; then
-      break
-    else
-      print_error "Invalid email format. Please try again." # Invalid email format. Please try again.
-    fi
-  done
-  echo ""
-
-  local cert_path="/etc/letsencrypt/live/$domain"
-
-  if [ -d "$cert_path" ]; then
-    print_success "SSL certificate for $domain already exists. Skipping Certbot." # SSL certificate for domain already exists. Skipping Certbot.
+  if [[ "$tls_choice_input" =~ ^[Nn]$ ]]; then
+    tls_enabled="false"
+    print_error "TLS/SSL is disabled. Communication will not be encrypted."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue without TLS...${RESET}"
+    read -p ""
   else
-    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}" # Requesting SSL certificate with Certbot...
-    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
-      print_success "SSL certificate obtained successfully." # SSL certificate obtained successfully.
-    else
-      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}" # Failed to obtain SSL certificate. Cannot start server without SSL.
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
-      read -p ""
-      return # Use return instead of exit 1
-    fi
+    print_success "TLS/SSL is enabled. Proceeding with certificate configuration."
+    echo ""
   fi
 
-  # Proceed only if certificate acquisition was successful or it already existed
-  if [ -d "$cert_path" ]; then
-    echo ""
-    echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
-    echo -e "  (Default tunneling address port is 6060)"
-    
-    # Validate Listen Port
-    local listen_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter tunneling address port (1-65535, default 6060):${RESET} " # Enter tunneling address port (1-65535, default 6060):
-      read -p "" listen_port_input
-      listen_port=${listen_port_input:-6060} # Apply default if empty
-      if validate_port "$listen_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
+  local cert_path=""
+  local cert_args=""
 
-    echo -e "  (Default TCP upstream port is 8800)"
-    # Validate TCP Upstream Port
-    local tcp_upstream_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 8800):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
-      read -p "" tcp_upstream_port_input
-      tcp_upstream_port=${tcp_upstream_port_input:-8800} # Apply default if empty
-      if validate_port "$tcp_upstream_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
-
-    echo -e "  (Default UDP upstream port is 8800)"
-    # Validate UDP Upstream Port
-    local udp_upstream_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 8800):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
-      read -p "" udp_upstream_port_input
-      udp_upstream_port=${udp_upstream_port_input:-8800} # Apply default if empty
-      if validate_port "$udp_upstream_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
-
-    echo -e "👉 ${WHITE}Enter password:${RESET} " # Enter password:
-    read -p "" password
-    echo ""
-
-    if [[ -z "$password" ]]; then
-      echo -e "${RED}❌ Password cannot be empty!${RESET}" # Password cannot be empty!
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
+  if [[ "$tls_enabled" == "true" ]]; then
+    # لیست کردن certificate های موجود
+    local certs_dir="/etc/letsencrypt/live"
+    if [ ! -d "$certs_dir" ]; then
+      echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
       read -p ""
-      return # Use return instead of exit 1
+      return
     fi
 
-    local service_file="/etc/systemd/system/trusttunnel.service"
+    # Find directories under /etc/letsencrypt/live/ that are not 'README'
+    # and get their base names (which are the domain names)
+    mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
 
-    if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
-      echo -e "${YELLOW}🛑 Stopping existing Trusttunnel service...${RESET}" # Stopping existing Trusttunnel service...
-      sudo systemctl stop trusttunnel.service > /dev/null 2>&1
-      echo -e "${YELLOW}🗑️ Disabling and removing existing Trusttunnel service...${RESET}" # Disabling and removing existing Trusttunnel service...
-      sudo systemctl disable trusttunnel.service > /dev/null 2>&1
-      sudo rm -f /etc/systemd/system/trusttunnel.service > /dev/null 2>&1
-      sudo systemctl daemon-reload > /dev/null 2>&1
-      print_success "Existing TrustTunnel service removed." # Existing TrustTunnel service removed.
+    if [ ${#cert_domains[@]} -eq 0 ]; then
+      echo -e "${RED}❌ No SSL certificates found.${RESET}"
+      echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
     fi
 
-    cat <<EOF | sudo tee "$service_file" > /dev/null
+    echo -e "${CYAN}Available SSL Certificates:${RESET}"
+    for i in "${!cert_domains[@]}"; do
+      echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
+    done
+
+    local cert_choice
+    while true; do
+      echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+      read -p "" cert_choice
+      if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
+        break
+      else
+        print_error "Invalid selection. Please enter a valid number."
+      fi
+    done
+    local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+    cert_path="$certs_dir/$selected_domain_name"
+    echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
+    echo ""
+
+    if [ ! -d "$cert_path" ]; then
+      echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+    cert_args="--cert \"$cert_path/fullchain.pem\" --key \"$cert_path/privkey.pem\""
+  else
+    echo -e "${YELLOW}Skipping SSL certificate selection as TLS is disabled.${RESET}"
+    echo ""
+  fi
+
+  echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
+  echo -e "  (Default tunneling address port is 6060)"
+  
+  # Validate Listen Port
+  local listen_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter tunneling address port (1-65535, default 6060):${RESET} " # Enter tunneling address port (1-65535, default 6060):
+    read -p "" listen_port_input
+    listen_port=${listen_port_input:-6060} # Apply default if empty
+    if validate_port "$listen_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+    fi
+  done
+
+  echo -e "  (Default TCP upstream port is 8800)"
+  # Validate TCP Upstream Port
+  local tcp_upstream_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 8800):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
+    read -p "" tcp_upstream_port_input
+    tcp_upstream_port=${tcp_upstream_port_input:-8800} # Apply default if empty
+    if validate_port "$tcp_upstream_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+    fi
+  done
+
+  echo -e "  (Default UDP upstream port is 8800)"
+  # Validate UDP Upstream Port
+  local udp_upstream_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 8800):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
+    read -p "" udp_upstream_port_input
+    udp_upstream_port=${udp_upstream_port_input:-8800} # Apply default if empty
+    if validate_port "$udp_upstream_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+    fi
+  done
+
+  echo -e "👉 ${WHITE}Enter password:${RESET} " # Enter password:
+  read -p "" password
+  echo ""
+
+  if [[ -z "$password" ]]; then
+    echo -e "${RED}❌ Password cannot be empty!${RESET}" # Password cannot be empty!
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
+    read -p ""
+    return # Use return instead of exit 1
+  fi
+
+  local service_file="/etc/systemd/system/trusttunnel.service"
+
+  if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
+    echo -e "${YELLOW}🛑 Stopping existing Trusttunnel service...${RESET}" # Stopping existing Trusttunnel service...
+    sudo systemctl stop trusttunnel.service > /dev/null 2>&1
+    echo -e "${YELLOW}🗑️ Disabling and removing existing Trusttunnel service...${RESET}" # Disabling and removing existing Trusttunnel service...
+    sudo systemctl disable trusttunnel.service > /dev/null 2>&1
+    sudo rm -f /etc/systemd/system/trusttunnel.service > /dev/null 2>&1
+    sudo systemctl daemon-reload > /dev/null 2>&1
+    print_success "Existing TrustTunnel service removed." # TrustTunnel service removed.
+  fi
+
+  cat <<EOF | sudo tee "$service_file" > /dev/null
 [Unit]
 Description=TrustTunnel Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" $cert_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -702,17 +729,15 @@ User=$(whoami)
 WantedBy=multi-user.target
 EOF
 
-    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
-    sudo systemctl daemon-reload
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
+  sudo systemctl daemon-reload
 
-    echo -e "${CYAN}🚀 Enabling and starting Trusttunnel service...${RESET}" # Enabling and starting Trusttunnel service...
-    sudo systemctl enable trusttunnel.service > /dev/null 2>&1
-    sudo systemctl start trusttunnel.service > /dev/null 2>&1
+  echo -e "${CYAN}🚀 Enabling and starting Trusttunnel service...${RESET}" # Enabling and starting Trusttunnel service...
+  sudo systemctl enable trusttunnel.service > /dev/null 2>&1
+  sudo systemctl start trusttunnel.service > /dev/null 2>&1
 
-    print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
-  else
-    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}" # SSL certificate not available. Server setup aborted.
-  fi
+  print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
+
 
   echo ""
   echo -e "${YELLOW}Do you want to view the logs for trusttunnel.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
@@ -724,15 +749,16 @@ EOF
   fi
 
   echo ""
-  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
+  
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
-
 }
+
 add_new_client_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
+  echo -e "${CYAN}     ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -751,12 +777,11 @@ add_new_client_action() {
     echo -e "${RED}❌ Service with this name already exists.${RESET}" # Service with this name already exists.
     echo ""
     echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
-    read -p ""
     return # Return to menu
   fi
 
   echo -e "${CYAN}🌐 Server Connection Details:${RESET}" # Server Connection Details:
-  echo -e "  (e.x., server.yourdomain.com:6060)"
+  echo -e "  (e.x., server.yourdomain.com:6060)"
   
   # Validate Server Address
   local server_addr
@@ -777,7 +802,7 @@ add_new_client_action() {
   echo ""
 
   echo -e "${CYAN}📡 Tunnel Mode:${RESET}" # Tunnel Mode:
-  echo -e "  (tcp/udp/both)"
+  echo -e "  (tcp/udp/both)"
   echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} " # Tunnel mode ? (tcp/udp/both):
   read -p "" tunnel_mode
   echo ""
@@ -845,7 +870,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -862,7 +887,6 @@ EOF
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Client '$client_name' started as $service_name" # Client 'client_name' started as service_name
-
   echo ""
   echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
   read -p "" view_logs_choice
@@ -871,7 +895,6 @@ EOF
   if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
     show_service_logs "$service_name"
   fi
-
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
@@ -935,9 +958,9 @@ perform_initial_setup() {
       echo ""
       echo "------------------------------------------------------------------"
       echo "⚠️ Important: To make Rust available in your terminal," # Important: To make Rust available in your terminal,
-      echo "    you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
-      echo "    source \"$CARGO_ENV_FILE\""
-      echo "    Run this command once in each new terminal session." # Run this command once in each new terminal session.
+      echo "    you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
+      echo "    source \"$CARGO_ENV_FILE\""
+      echo "    Run this command once in each new terminal session." # Run this command once in each new terminal session.
       echo "------------------------------------------------------------------"
 
     else
@@ -959,6 +982,521 @@ perform_initial_setup() {
   fi
   echo ""
   return 0
+}
+
+# --- Add New Direct Server Action ---
+add_new_direct_server_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+  
+  if [ ! -f "rstun/rstund" ]; then
+    echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
+    echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  local tls_enabled="true" # Default to true (recommended)
+  echo -e "${CYAN}🔒 TLS/SSL Mode Configuration:${RESET}"
+  echo -e "  (It's highly recommended to enable TLS for secure communication.)"
+  echo -e "👉 ${WHITE}Do you want to enable TLS/SSL for this server? (Y/n, default: Y):${RESET} "
+  read -p "" tls_choice_input
+  tls_choice_input=${tls_choice_input:-Y} # Default to Y if empty
+
+  if [[ "$tls_choice_input" =~ ^[Nn]$ ]]; then
+    tls_enabled="false"
+    print_error "TLS/SSL is disabled. Communication will not be encrypted."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue without TLS...${RESET}"
+    read -p ""
+  else
+    print_success "TLS/SSL is enabled. Proceeding with certificate configuration."
+    echo ""
+  fi
+
+  local cert_path=""
+  local cert_args=""
+
+  if [[ "$tls_enabled" == "true" ]]; then
+    # لیست کردن certificate های موجود
+    local certs_dir="/etc/letsencrypt/live"
+    if [ ! -d "$certs_dir" ]; then
+      echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    mapfile -t cert_domains < <(sudo find "$certs_dir" -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+    if [ ${#cert_domains[@]} -eq 0 ]; then
+      echo -e "${RED}❌ No SSL certificates found.${RESET}"
+      echo -e "${YELLOW}Please create one from the 'Certificate management' menu first.${RESET}"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    echo -e "${CYAN}Available SSL Certificates:${RESET}"
+    for i in "${!cert_domains[@]}"; do
+      echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}${cert_domains[$i]}${RESET}"
+    done
+
+    local cert_choice
+    while true; do
+      echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+      read -p "" cert_choice
+      if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#cert_domains[@]} ]; then
+        break
+      else
+        print_error "Invalid selection. Please enter a valid number."
+      fi
+    done
+    local selected_domain_name="${cert_domains[$((cert_choice-1))]}"
+    cert_path="$certs_dir/$selected_domain_name"
+    echo -e "${GREEN}Selected certificate: $selected_domain_name (Path: $cert_path)${RESET}"
+    echo ""
+
+    if [ ! -d "$cert_path" ]; then
+      echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+    cert_args="--cert \"$cert_path/fullchain.pem\" --key \"$cert_path/privkey.pem\""
+  else
+    echo -e "${YELLOW}Skipping SSL certificate selection as TLS is disabled.${RESET}"
+    echo ""
+  fi
+
+  # Proceed only if certificate acquisition was successful or it already existed
+  # The check for cert_path existence is now inside the tls_enabled block
+  # so this outer if is no longer needed.
+  # if [ -d "$cert_path" ] || [[ "$tls_enabled" == "false" ]]; then # This condition is now implicitly handled by the above logic
+
+    echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
+    echo -e "  (Default listen port is 8800)"
+    
+    # Validate Listen Port
+    local listen_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter listen port (1-65535, default 8800):${RESET} "
+      read -p "" listen_port_input
+      listen_port=${listen_port_input:-8800}
+      if validate_port "$listen_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535."
+      fi
+    done
+    echo -e "  (Default TCP upstream port is 8800)"
+    # Validate TCP Upstream Port
+    local tcp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 2030):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
+      read -p "" tcp_upstream_port_input
+      tcp_upstream_port=${tcp_upstream_port_input:-2030} # Apply default if empty
+      if validate_port "$tcp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+    done
+
+    echo -e "  (Default UDP upstream port is 8800)"
+    # Validate UDP Upstream Port
+    local udp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 2040):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
+      read -p "" udp_upstream_port_input
+      udp_upstream_port=${udp_upstream_port_input:-2040} # Apply default if empty
+      if validate_port "$udp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+      done
+
+
+
+    echo -e "👉 ${WHITE}Enter password:${RESET} "
+    read -p "" password
+    echo ""
+
+    if [[ -z "$password" ]]; then
+      echo -e "${RED}❌ Password cannot be empty!${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    local service_file="/etc/systemd/system/trusttunnel-direct.service"
+
+    if systemctl is-active --quiet trusttunnel-direct.service || systemctl is-enabled --quiet trusttunnel-direct.service; then
+      echo -e "${YELLOW}🛑 Stopping existing Direct Trusttunnel service...${RESET}"
+      sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
+      sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
+      sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
+      sudo systemctl daemon-reload > /dev/null 2>&1
+      print_success "Existing Direct TrustTunnel service removed."
+    fi
+
+    cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port $cert_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+    sudo systemctl daemon-reload
+
+    echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel service...${RESET}"
+    sudo systemctl enable trusttunnel-direct.service > /dev/null 2>&1
+    sudo systemctl start trusttunnel-direct.service > /dev/null 2>&1
+
+    print_success "Direct TrustTunnel service started successfully!"
+  # else # This else block is no longer needed due to the early return in the TLS section
+  #   echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  # fi
+
+
+
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel-direct.service
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- Add New Direct Client Action ---
+add_new_direct_client_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Client${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  # Prompt for the client name
+  echo -e "👉 ${WHITE}Enter client name (e.g., client1, client2):${RESET} "
+  read -p "" client_name
+  echo ""
+
+  # Construct the service name based on the client name
+  service_name="trusttunnel-direct-client-$client_name"
+  # Define the path for the systemd service file
+  service_file="/etc/systemd/system/${service_name}.service"
+
+  # Check if a service with the given name already exists
+  if [ -f "$service_file" ]; then
+    echo -e "${RED}❌ Service with this name already exists.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
+  echo -e "  (e.x., server.yourdomain.com:8800)"
+  
+  # Validate Server Address
+  local server_addr
+  while true; do
+    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} " # Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):
+    read -p "" server_addr_input
+    # Split into host and port for validation
+    local host_part=$(echo "$server_addr_input" | cut -d':' -f1)
+    local port_part=$(echo "$server_addr_input" | cut -d':' -f2)
+
+    if validate_host "$host_part" && validate_port "$port_part"; then
+      server_addr="$server_addr_input"
+      break
+    else
+      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)." # Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800).
+    fi
+  done
+  echo ""
+
+  echo -e "${CYAN}📡 Tunnel Mode:${RESET}" # Tunnel Mode:
+  echo -e "  (tcp/udp/both)"
+  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} " # Tunnel mode ? (tcp/udp/both):
+  read -p "" tunnel_mode
+  echo ""
+
+  echo -e "🔑 ${WHITE}Password:${RESET} " # Password:
+  read -p "" password
+  echo ""
+
+  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}" # Port Mapping Configuration:
+  
+  local port_count
+  while true; do
+    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} " # How many ports to tunnel?
+    read -p "" port_count_input
+    if [[ "$port_count_input" =~ ^[0-9]+$ ]] && (( port_count_input >= 0 )); then
+      port_count=$port_count_input
+      break
+    else
+      print_error "Invalid input. Please enter a non-negative number for port count." # Invalid input. Please enter a non-negative number for port count.
+    fi
+  done
+  echo ""
+  
+  mappings=""
+  for ((i=1; i<=port_count; i++)); do
+    local port
+    while true; do
+      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} " # Enter Port #i (1-65535):
+      read -p "" port_input
+      if validate_port "$port_input"; then
+        port="$port_input"
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+    done
+    mapping="OUT^0.0.0.0:$port^$port"
+    [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
+    echo ""
+  done
+
+  # Determine the mapping arguments based on the tunnel_mode
+  mapping_args=""
+  case "$tunnel_mode" in
+    "tcp")
+      mapping_args="--tcp-mappings \"$mappings\""
+      ;;
+    "udp")
+      mapping_args="--udp-mappings \"$mappings\""
+      ;;
+    "both")
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+    *)
+      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}" # Invalid tunnel mode specified. Using 'both' as default.
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+  esac
+
+  # Create the systemd service file
+  cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Client - $client_name
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
+  sudo systemctl daemon-reload
+
+  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}" # Enabling and starting Direct Trusttunnel client service...
+  sudo systemctl enable "$service_name" > /dev/null 2>&1
+  sudo systemctl start "$service_name" > /dev/null 2>&1
+
+  print_success "Direct client '$client_name' started as $service_name"
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
+  read -p ""
+}
+
+# --- New: Function to get a new SSL certificate using Certbot ---
+get_new_certificate_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}     ➕ Get New SSL Certificate${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
+  echo -e "  (e.g., yourdomain.com)"
+  
+  local domain
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your domain:${RESET} "
+    read -p "" domain
+    if validate_host "$domain"; then
+      break
+    else
+      print_error "Invalid domain or IP address format. Please try again."
+    fi
+  done
+  echo ""
+
+  local email
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
+    read -p "" email
+    if validate_email "$email"; then
+      break
+    else
+      print_error "Invalid email format. Please try again."
+    fi
+  done
+  echo ""
+
+  local cert_path="/etc/letsencrypt/live/$domain"
+
+  if [ -d "$cert_path" ]; then
+    print_success "SSL certificate for $domain already exists. Skipping Certbot."
+  else
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
+    echo -e "${YELLOW}Ensure port 80 is open and not in use by another service.${RESET}"
+    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
+      print_success "SSL certificate obtained successfully for $domain."
+    else
+      print_error "❌ Failed to obtain SSL certificate for $domain. Check Certbot logs for details."
+      print_error "   Ensure your domain points to this server and port 80 is open."
+    fi
+  fi
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- New: Function to delete existing SSL certificates ---
+delete_certificates_action() {
+  clear
+  echo ""
+  draw_line "$RED" "=" 40
+  echo -e "${RED}     🗑️ Delete SSL Certificates${RESET}"
+  draw_line "$RED" "=" 40
+  echo ""
+
+  echo -e "${CYAN}🔍 Searching for existing SSL certificates...${RESET}"
+  # Find directories under /etc/letsencrypt/live/ that are not 'README'
+  mapfile -t cert_domains < <(sudo find /etc/letsencrypt/live -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+  if [ ${#cert_domains[@]} -eq 0 ]; then
+    print_error "No SSL certificates found to delete."
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return 1
+  fi
+
+  echo -e "${CYAN}📋 Please select a certificate to delete:${RESET}"
+  # Add a "Back to previous menu" option
+  cert_domains+=("Back to previous menu")
+  select selected_domain in "${cert_domains[@]}"; do
+    if [[ "$selected_domain" == "Back to previous menu" ]]; then
+      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+      echo ""
+      return 0
+    elif [ -n "$selected_domain" ]; then
+      break
+    else
+      print_error "Invalid selection. Please enter a valid number."
+    fi
+  done
+  echo ""
+
+  if [[ -z "$selected_domain" ]]; then
+    print_error "No certificate selected. Aborting deletion."
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return 1
+  fi
+
+  echo -e "${RED}⚠️ Are you sure you want to delete the certificate for '$selected_domain'? (y/N): ${RESET}"
+  read -p "" confirm_delete
+  echo ""
+
+  if [[ "$confirm_delete" =~ ^[Yy]$ ]]; then
+    echo -e "${CYAN}🗑️ Deleting certificate for '$selected_domain' using Certbot...${RESET}"
+    if sudo certbot delete --cert-name "$selected_domain"; then
+      print_success "Certificate for '$selected_domain' deleted successfully."
+    else
+      print_error "❌ Failed to delete certificate for '$selected_domain'. Check Certbot logs."
+    fi
+  else
+    echo -e "${YELLOW}Deletion cancelled for '$selected_domain'.${RESET}"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- New: Certificate Management Menu Function ---
+certificate_management_menu() {
+  while true; do
+    clear
+    echo ""
+    draw_line "$GREEN" "=" 40
+    echo -e "${CYAN}     🔐 Certificate Management${RESET}"
+    draw_line "$GREEN" "=" 40
+    echo ""
+    echo -e "  ${YELLOW}1)${RESET} ${WHITE}Get new certificate${RESET}"
+    echo -e "  ${YELLOW}2)${RESET} ${WHITE}Delete certificates${RESET}"
+    echo -e "  ${YELLOW}3)${RESET} ${WHITE}Back to main menu${RESET}"
+    echo ""
+    draw_line "$GREEN" "-" 40
+    echo -e "👉 ${CYAN}Your choice:${RESET} "
+    read -p "" cert_choice
+    echo ""
+
+    case $cert_choice in
+      1)
+        get_new_certificate_action
+        ;;
+      2)
+        delete_certificates_action
+        ;;
+      3)
+        echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}"
+        break # Break out of this while loop to return to main menu
+        ;;
+      *)
+        echo -e "${RED}❌ Invalid option.${RESET}"
+        echo ""
+        echo -e "${YELLOW}Press Enter to continue...${RESET}"
+        read -p ""
+        ;;
+    esac
+  done
 }
 
 
@@ -987,15 +1525,17 @@ while true; do
   echo -e "Telegram Channel => @Erfan_XRay"
   echo -e "\033[0m${WHITE}Reverse tunnel over QUIC ( Based on rstun project)${WHITE}${RESET}" # Reverse tunnel over QUIC ( Based on rstun project)
   draw_green_line
-  echo -e "${GREEN}|${RESET}              ${WHITE}TrustTunnel Main Menu${RESET}                  ${GREEN}|${RESET}" # TrustTunnel Main Menu
+  echo -e "${GREEN}|${RESET}      ${WHITE}TrustTunnel Main Menu${RESET}      ${GREEN}|${RESET}" # TrustTunnel Main Menu
   # echo -e "${YELLOW}You can also run this script anytime by typing: ${WHITE}trust${RESET}" # Removed as per user request
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
-  echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
-  echo -e "${CYAN}2) Tunnel Management${RESET}" # Tunnel Management
-  echo -e "${RED}3) Uninstall TrustTunnel${RESET}" # Uninstall TrustTunnel
-  echo -e "${WHITE}4) Exit${RESET}" # Exit
+  echo -e "${MAGENTA}1) Install Rstun${RESET}" # Install TrustTunnel
+  echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
+  echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
+  echo -e "${YELLOW}4) Certificate management${RESET}" # New: Certificate management
+  echo -e "${RED}5) Uninstall TrustTunnel${RESET}" # Shifted from 4
+  echo -e "${WHITE}6) Exit${RESET}" # Shifted from 5
   read -p "👉 Your choice: " choice # Your choice:
 
   case $choice in
@@ -1003,15 +1543,16 @@ while true; do
       install_trusttunnel_action
       ;;
     2)
+   while true; do 
     clear # Clear screen for a fresh menu display
     echo ""
     draw_line "$GREEN" "=" 40 # Top border
-    echo -e "${CYAN}        🌐 Choose Tunnel Mode${RESET}" # Choose Tunnel Mode
+    echo -e "${CYAN}     🌐 Choose Tunnel Mode${RESET}" # Choose Tunnel Mode
     draw_line "$GREEN" "=" 40 # Separator
     echo ""
-    echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Server (Iran)${RESET}" # Server (Iran)
-    echo -e "  ${YELLOW}2)${RESET} ${BLUE}Client (Kharej)${RESET}" # Client (Kharej)
-    echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}" # Return to main menu
+    echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Server (Iran)${RESET}" # Server (Iran)
+    echo -e "  ${YELLOW}2)${RESET} ${BLUE}Client (Kharej)${RESET}" # Client (Kharej)
+    echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}" # Return to main menu
     echo ""
     draw_line "$GREEN" "-" 40 # Bottom border
     echo -e "👉 ${CYAN}Your choice:${RESET} " # Your choice:
@@ -1027,15 +1568,15 @@ while true; do
             clear # Clear screen for a fresh menu display
             echo ""
             draw_line "$GREEN" "=" 40 # Top border
-            echo -e "${CYAN}        🔧 TrustTunnel Server Management${RESET}" # TrustTunnel Server Management
+            echo -e "${CYAN}     🔧 TrustTunnel Server Management${RESET}" # TrustTunnel Server Management
             draw_line "$GREEN" "=" 40 # Separator
             echo ""
-            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new server${RESET}" # Add new server
-            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show service logs${RESET}" # Show service logs
-            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete service${RESET}" # Delete service
-            echo -e "  ${YELLOW}4)${RESET} ${MAGENTA}Schedule server restart${RESET}" # Schedule server restart
-            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}" # New option: Delete scheduled restart
-            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}" # Back to main menu
+            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new server${RESET}" # Add new server
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show service logs${RESET}" # Show service logs
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete service${RESET}" # Delete service
+            echo -e "  ${YELLOW}4)${RESET} ${MAGENTA}Schedule server restart${RESET}" # Schedule server restart
+            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}" # New option: Delete scheduled restart
+            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}" # Back to main menu
             echo ""
             draw_line "$GREEN" "-" 40 # Bottom border
             echo -e "👉 ${CYAN}Your choice:${RESET} " # Your choice:
@@ -1081,7 +1622,8 @@ while true; do
                 delete_cron_job_action
               ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2 # Break out of both inner while and outer case
               ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1099,15 +1641,15 @@ while true; do
             clear # Clear screen for a fresh menu display
             echo ""
             draw_line "$GREEN" "=" 40 # Top border
-            echo -e "${CYAN}        📡 TrustTunnel Client Management${RESET}" # TrustTunnel Client Management
+            echo -e "${CYAN}     📡 TrustTunnel Client Management${RESET}" # TrustTunnel Client Management
             draw_line "$GREEN" "=" 40 # Separator
             echo ""
-            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new client${RESET}" # Add new client
-            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Client Log${RESET}" # Show Client Log
-            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a client${RESET}" # Delete a client
-            echo -e "  ${YELLOW}4)${RESET} ${BLUE}Schedule client restart${RESET}" # Schedule client restart
-            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}" # New option: Delete scheduled restart
-            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}" # Back to main menu
+            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new client${RESET}" # Add new client
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Client Log${RESET}" # Show Client Log
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a client${RESET}" # Delete a client
+            echo -e "  ${YELLOW}4)${RESET} ${BLUE}Schedule client restart${RESET}" # Schedule client restart
+            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}" # New option: Delete scheduled restart
+            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}" # Back to main menu
             echo ""
             draw_line "$GREEN" "-" 40 # Bottom border
             echo -e "👉 ${CYAN}Your choice:${RESET} " # Your choice:
@@ -1122,7 +1664,7 @@ while true; do
                 clear
                 echo ""
                 draw_line "$CYAN" "=" 40
-                echo -e "${CYAN}        📊 TrustTunnel Client Logs${RESET}" # TrustTunnel Client Logs
+                echo -e "${CYAN}     📊 TrustTunnel Client Logs${RESET}" # TrustTunnel Client Logs
                 draw_line "$CYAN" "=" 40
                 echo ""
 
@@ -1161,7 +1703,7 @@ while true; do
                 clear
                 echo ""
                 draw_line "$CYAN" "=" 40
-                echo -e "${CYAN}        🗑️ Delete TrustTunnel Client${RESET}" # Delete TrustTunnel Client
+                echo -e "${CYAN}     🗑️ Delete TrustTunnel Client${RESET}" # Delete TrustTunnel Client
                 draw_line "$CYAN" "=" 40
                 echo ""
 
@@ -1210,7 +1752,7 @@ while true; do
                 clear
                 echo ""
                 draw_line "$CYAN" "=" 40
-                echo -e "${CYAN}        ⏰ Schedule Client Restart${RESET}" # Schedule Client Restart
+                echo -e "${CYAN}     ⏰ Schedule Client Restart${RESET}" # Schedule Client Restart
                 draw_line "$CYAN" "=" 40
                 echo ""
 
@@ -1240,12 +1782,13 @@ while true; do
                     fi
                   done
                 fi
-              ;;
+                ;;
               5) # New case for deleting cron job in client menu
                 delete_cron_job_action
               ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2 # Break out of both inner while and outer case
               ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1257,7 +1800,8 @@ while true; do
           done
           ;;
         3)
-          break # Return to main menu
+          echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+          break # Changed from 'return' to 'break'
           ;;
         *)
           echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1266,11 +1810,270 @@ while true; do
           read -p ""
           ;;
       esac
-    ;;
+      done
+      ;;
+      
     3)
+    while true; do 
+      # Direct tunnel menu (copy of reverse tunnel with modified names)
+      clear
+      echo ""
+      draw_line "$GREEN" "=" 40
+      echo -e "${CYAN}        🌐 Choose Direct Tunnel Mode${RESET}"
+      draw_line "$GREEN" "=" 40
+      echo ""
+      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server(Kharej)${RESET}"
+      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client(Iran)${RESET}"
+      echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}"
+      echo ""
+      draw_line "$GREEN" "-" 40
+      echo -e "👉 ${CYAN}Your choice:${RESET} "
+      read -p "" direct_tunnel_choice
+      echo ""
+
+      case $direct_tunnel_choice in
+        1)
+          clear
+          # Direct Server Management Sub-menu (copy of reverse server menu)
+          while true; do
+            clear
+            echo ""
+            draw_line "$GREEN" "=" 40
+            echo -e "${CYAN}        🔧 Direct Server Management${RESET}"
+            draw_line "$GREEN" "=" 40
+            echo ""
+            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new direct server${RESET}"
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show direct service logs${RESET}"
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete direct service${RESET}"
+            echo -e "  ${YELLOW}4)${RESET} ${MAGENTA}Schedule direct server restart${RESET}"
+            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}"
+            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}"
+            echo ""
+            draw_line "$GREEN" "-" 40
+            echo -e "👉 ${CYAN}Your choice:${RESET} "
+            read -p "" direct_srv_choice
+            echo ""
+            case $direct_srv_choice in
+              1)
+                add_new_direct_server_action
+                ;;
+              2)
+                clear
+                service_file="/etc/systemd/system/trusttunnel-direct.service"
+                if [ -f "$service_file" ]; then
+                  show_service_logs "trusttunnel-direct.service"
+                else
+                  echo -e "${RED}❌ Service 'trusttunnel-direct.service' not found. Cannot show logs.${RESET}"
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                fi
+                ;;
+              3)
+                clear
+                service_file="/etc/systemd/system/trusttunnel-direct.service"
+                if [ -f "$service_file" ]; then
+                  echo -e "${YELLOW}🛑 Stopping and deleting trusttunnel-direct.service...${RESET}"
+                  sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
+                  sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
+                  sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
+                  sudo systemctl daemon-reload > /dev/null 2>&1
+                  print_success "Direct service deleted."
+                else
+                  echo -e "${RED}❌ Service 'trusttunnel-direct.service' not found. Nothing to delete.${RESET}"
+                fi
+                echo ""
+                echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                read -p ""
+                ;;
+              4)
+                reset_timer "trusttunnel-direct"
+                ;;
+              5)
+                delete_cron_job_action
+                ;;
+              6)
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2
+                ;;
+              *)
+                echo -e "${RED}❌ Invalid option.${RESET}"
+                echo ""
+                echo -e "${YELLOW}Press Enter to continue...${RESET}"
+                read -p ""
+                ;;
+            esac
+          done
+          ;;
+        2)
+          clear
+          while true; do
+            clear
+            echo ""
+            draw_line "$GREEN" "=" 40
+            echo -e "${CYAN}        📡 Direct Client Management${RESET}"
+            draw_line "$GREEN" "=" 40
+            echo ""
+            echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new direct client${RESET}"
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Direct Client Log${RESET}"
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a direct client${RESET}"
+            echo -e "  ${YELLOW}4)${RESET} ${BLUE}Schedule direct client restart${RESET}"
+            echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}"
+            echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}"
+            echo ""
+            draw_line "$GREEN" "-" 40
+            echo -e "👉 ${CYAN}Your choice:${RESET} "
+            read -p "" direct_client_choice
+            echo ""
+
+            case $direct_client_choice in
+              1)
+                add_new_direct_client_action
+                ;;
+              2)
+                clear
+                echo ""
+                draw_line "$CYAN" "=" 40
+                echo -e "${CYAN}        📊 Direct Client Logs${RESET}"
+                draw_line "$CYAN" "=" 40
+                echo ""
+                echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
+                if [ ${#services[@]} -eq 0 ]; then
+                  echo -e "${RED}❌ No direct clients found.${RESET}"
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                else
+                  echo -e "${CYAN}📋 Please select a service to see log:${RESET}"
+                  services+=("Back to previous menu")
+                  select selected_service in "${services[@]}"; do
+                    if [[ "$selected_service" == "Back to previous menu" ]]; then
+                      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+                      echo ""
+                      break 2
+                    elif [ -n "$selected_service" ]; then
+                      show_service_logs "$selected_service"
+                      break
+                    else
+                      echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+                    fi
+                  done
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                fi
+                ;;
+              3)
+                clear
+                echo ""
+                draw_line "$CYAN" "=" 40
+                echo -e "${CYAN}        🗑️ Delete Direct Client${RESET}"
+                draw_line "$CYAN" "=" 40
+                echo ""
+                echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
+                if [ ${#services[@]} -eq 0 ]; then
+                  echo -e "${RED}❌ No direct clients found.${RESET}"
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                else
+                  echo -e "${CYAN}📋 Please select a service to delete:${RESET}"
+                  services+=("Back to previous menu")
+                  select selected_service in "${services[@]}"; do
+                    if [[ "$selected_service" == "Back to previous menu" ]]; then
+                      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+                      echo ""
+                      break 2
+                    elif [ -n "$selected_service" ]; then
+                      service_file="/etc/systemd/system/${selected_service}.service"
+                      echo -e "${YELLOW}🛑 Stopping $selected_service...${RESET}"
+                      sudo systemctl stop "$selected_service" > /dev/null 2>&1
+                      sudo systemctl disable "$selected_service" > /dev/null 2>&1
+                      sudo rm -f "$service_file" > /dev/null 2>&1
+                      sudo systemctl daemon-reload > /dev/null 2>&1
+                      print_success "Direct client '$selected_service' deleted."
+                      echo -e "${CYAN}🧹 Removing cron jobs for '$selected_service'...${RESET}"
+                      (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for $selected_service$") | sudo crontab -
+                      print_success "Cron jobs for '$selected_service' removed."
+                      break
+                    else
+                      echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+                    fi
+                  done
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                fi
+                ;;
+              4)
+                clear
+                echo ""
+                draw_line "$CYAN" "=" 40
+                echo -e "${CYAN}        ⏰ Schedule Direct Client Restart${RESET}"
+                draw_line "$CYAN" "=" 40
+                echo ""
+                echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
+                if [ ${#services[@]} -eq 0 ]; then
+                  echo -e "${RED}❌ No direct clients found to schedule. Please add a client first.${RESET}"
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                else
+                  echo -e "${CYAN}📋 Please select which direct client service to schedule for restart:${RESET}"
+                  services+=("Back to previous menu")
+                  select selected_client_service in "${services[@]}"; do
+                    if [[ "$selected_client_service" == "Back to previous menu" ]]; then
+                      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+                      echo ""
+                      break 2
+                    elif [ -n "$selected_client_service" ]; then
+                      reset_timer "$selected_client_service"
+                      break
+                    else
+                      echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+                    fi
+                  done
+                fi
+                ;;
+              5)
+                delete_cron_job_action
+                ;;
+              6)
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2
+                ;;
+              *)
+                echo -e "${RED}❌ Invalid option.${RESET}"
+                echo ""
+                echo -e "${YELLOW}Press Enter to continue...${RESET}"
+                read -p ""
+                ;;
+            esac
+          done
+          ;;
+        3)
+          echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+          break # Changed from 'return' to 'break'
+          ;;
+        *)
+          echo -e "${RED}❌ Invalid option.${RESET}"
+          echo ""
+          echo -e "${YELLOW}Press Enter to continue...${RESET}"
+          read -p ""
+          ;;
+      esac
+      done
+      ;;
+    4) # New Certificate Management option
+      certificate_management_menu
+      ;;
+    5) # Shifted from 4
       uninstall_trusttunnel_action
     ;;
-    4)
+    6) # Shifted from 5
       exit 0
     ;;
     *)
@@ -1286,4 +2089,3 @@ else
 echo ""
   echo "🛑 Rust is not ready. Skipping the main menu." # Rust is not ready. Skipping the main menu.
 fi
-
