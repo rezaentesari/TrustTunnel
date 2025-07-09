@@ -958,7 +958,7 @@ add_new_direct_server_action() {
   echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
   draw_line "$CYAN" "=" 40
   echo ""
-
+  
   if [ ! -f "rstun/rstund" ]; then
     echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
     echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
@@ -1024,6 +1024,35 @@ add_new_direct_server_action() {
         print_error "Invalid port number. Please enter a number between 1 and 65535."
       fi
     done
+    echo -e "  (Default TCP upstream port is 8800)"
+    # Validate TCP Upstream Port
+    local tcp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 2030):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
+      read -p "" tcp_upstream_port_input
+      tcp_upstream_port=${tcp_upstream_port_input:-2030} # Apply default if empty
+      if validate_port "$tcp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+    done
+
+    echo -e "  (Default UDP upstream port is 8800)"
+    # Validate UDP Upstream Port
+    local udp_upstream_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 2040):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
+      read -p "" udp_upstream_port_input
+      udp_upstream_port=${udp_upstream_port_input:-2040} # Apply default if empty
+      if validate_port "$udp_upstream_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+      fi
+      done
+
+
 
     echo -e "👉 ${WHITE}Enter password:${RESET} "
     read -p "" password
@@ -1055,7 +1084,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
