@@ -685,7 +685,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --tcp-upstream $tcp_upstream_port --udp-upstream $udp_upstream_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -702,7 +702,19 @@ EOF
   sudo systemctl start trusttunnel.service > /dev/null 2>&1
 
   print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
+
+
   echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel.service
+  fi
+
+  echo ""
+  
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
 }
@@ -824,7 +836,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -841,7 +853,14 @@ EOF
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Client '$client_name' started as $service_name" # Client 'client_name' started as service_name
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
 
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
@@ -1036,7 +1055,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem" --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -1055,6 +1074,18 @@ EOF
     print_success "Direct TrustTunnel service started successfully!"
   else
     echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  fi
+
+
+
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel-direct.service
   fi
 
   echo ""
@@ -1180,7 +1211,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args --quic-timeout-ms 1000 --tcp-timeout-ms 1000 --udp-timeout-ms 1000 --wait-before-retry-ms 3000
 Restart=always
 RestartSec=5
 User=$(whoami)
@@ -1197,7 +1228,14 @@ EOF
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Direct client '$client_name' started as $service_name"
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
+  read -p "" view_logs_choice
+  echo ""
 
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
   echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
