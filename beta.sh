@@ -1196,7 +1196,7 @@ add_new_direct_client_action() {
         print_error "Invalid port number. Please enter a number between 1 and 65535."
       fi
     done
-    mapping="OUT^0.0.0.0:$port^:$port"
+    mapping="OUT^0.0.0.0:$port^$port"
     [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
     echo ""
   done
