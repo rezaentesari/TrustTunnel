@@ -1378,7 +1378,8 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 delete_cron_job_action
               ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2 # Break out of both inner while and outer case
               ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1542,7 +1543,8 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 delete_cron_job_action
               ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2 # Break out of both inner while and outer case
               ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1554,6 +1556,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           done
           ;;
         3)
+          echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
           break # Changed from 'return' to 'break'
           ;;
         *)
@@ -1643,7 +1646,8 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 delete_cron_job_action
                 ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2
                 ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}"
@@ -1791,7 +1795,8 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
                 delete_cron_job_action
                 ;;
               6)
-                break
+                echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
+                break 2
                 ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}"
@@ -1803,6 +1808,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           done
           ;;
         3)
+          echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}" # Returning to main menu...
           break # Changed from 'return' to 'break'
           ;;
         *)
