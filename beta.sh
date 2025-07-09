@@ -1223,6 +1223,25 @@ certificate_management_menu() {
 }
 
 
+# --- Hysteria2 Installation Check ---
+check_and_install_hysteria2() {
+  if command -v hy2 >/dev/null 2>&1; then
+    echo -e "${GREEN}Hysteria2 (hy2) is already installed.${RESET}"
+  else
+    echo -e "${YELLOW}Installing Hysteria2 (hy2)...${RESET}"
+    bash <(curl -fsSL https://get.hy2.sh/)
+    if command -v hy2 >/dev/null 2>&1; then
+      echo -e "${GREEN}Hysteria2 (hy2) installed successfully.${RESET}"
+    else
+      echo -e "${RED}Failed to install Hysteria2 (hy2). Please check your network or permissions.${RESET}"
+      exit 1
+    fi
+  fi
+}
+
+# Call the check at the very beginning of the script
+check_and_install_hysteria2
+
 # --- Main Script Execution ---
 set -e # Exit immediately if a command exits with a non-zero status
 
@@ -1256,9 +1275,10 @@ while true; do
   echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
   echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
-  echo -e "${YELLOW}4) Certificate management${RESET}" # New: Certificate management
-  echo -e "${RED}5) Uninstall TrustTunnel${RESET}" # Shifted from 4
-  echo -e "${WHITE}6) Exit${RESET}" # Shifted from 5
+  echo -e "${CYAN}4) Hysteria2 direct tunnel${RESET}" # Hysteria2 direct tunnel
+  echo -e "${YELLOW}5) Certificate management${RESET}" # New: Certificate management
+  echo -e "${RED}6) Uninstall TrustTunnel${RESET}" # Shifted from 4
+  echo -e "${WHITE}7) Exit${RESET}" # Shifted from 5
   read -p "👉 Your choice: " choice # Your choice:
 
   case $choice in
@@ -1736,12 +1756,12 @@ while true; do
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
                 mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-client-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
-                  echo -e "${RED}❌ No direct clients found to schedule. Please add a client first.${RESET}"
+                  echo -e "${RED}❌ No direct clients found to schedule. Please add a client first.${RESET}" # No direct clients found to schedule. Please add a client first.
                   echo ""
-                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
                   read -p ""
                 else
-                  echo -e "${CYAN}📋 Please select which direct client service to schedule for restart:${RESET}"
+                  echo -e "${CYAN}📋 Please select which direct client service to schedule for restart:${RESET}" # Please select which direct client service to schedule for restart:
                   services+=("Back to previous menu")
                   select selected_client_service in "${services[@]}"; do
                     if [[ "$selected_client_service" == "Back to previous menu" ]]; then
@@ -1785,13 +1805,21 @@ while true; do
           ;;
       esac
       ;;
-    4) # New Certificate Management option
+    4)
+      # Hysteria2 direct tunnel
+      clear
+      echo -e "${CYAN}Hysteria2 direct tunnel selected!${RESET}"
+      echo -e "(اینجا می‌توانید عملکرد مربوط به Hysteria2 را اضافه کنید)"
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      ;;
+    5)
       certificate_management_menu
       ;;
-    5) # Shifted from 4
+    6)
       uninstall_trusttunnel_action
     ;;
-    6) # Shifted from 5
+    7)
       exit 0
     ;;
     *)
