@@ -1555,7 +1555,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           done
           ;;
         3)
-          break # Return to main menu
+          return
           ;;
         *)
           echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
