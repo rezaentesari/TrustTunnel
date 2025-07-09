@@ -431,7 +431,15 @@ uninstall_trusttunnel_action() {
     else
       echo "⚠️ 'rstun' folder not found." # 'rstun' folder not found.
     fi
-
+    # --- NEW: Remove hysteria folder if exists ---
+    if [ -d "hysteria" ]; then
+      echo "🗑️ Removing 'hysteria' folder..." # Removing 'hysteria' folder...
+      rm -rf hysteria
+      print_success "'hysteria' folder removed successfully." # 'hysteria' folder removed successfully.
+    else
+      echo "⚠️ 'hysteria' folder not found." # 'hysteria' folder not found.
+    fi
+    # --- END NEW ---
     # Remove TrustTunnel related cron jobs
     echo -e "${CYAN}🧹 Removing any associated TrustTunnel cron jobs...${RESET}" # Removing any associated TrustTunnel cron jobs...
     (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for") | sudo crontab -
@@ -550,6 +558,86 @@ install_trusttunnel_action() {
   echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
 }
+
+# --- NEW: Install Hysteria2 Action ---
+install_hysteria2_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}     📥 Installing Hysteria2${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  # Delete existing hysteria folder if it exists
+  if [ -d "hysteria" ]; then
+    echo -e "${YELLOW}🧹 Removing existing 'hysteria' folder...${RESET}"
+    rm -rf hysteria
+    print_success "Existing 'hysteria' folder removed."
+  fi
+
+  echo -e "${CYAN}🚀 Detecting system architecture...${RESET}"
+  local arch=$(uname -m)
+  local download_url=""
+  local filename=""
+
+  case "$arch" in
+    "x86_64")
+      download_url="https://github.com/apernet/hysteria/releases/download/app%2Fv2.6.2/hysteria-linux-amd64"
+      filename="hysteria-linux-amd64"
+      ;;
+    "armv7l")
+      download_url="https://github.com/apernet/hysteria/releases/download/app%2Fv2.6.2/hysteria-linux-arm"
+      filename="hysteria-linux-arm"
+      ;;
+    *)
+      echo -e "${RED}❌ Error: Unsupported architecture detected: $arch.${RESET}"
+      echo -e "${YELLOW}Attempting to download x86_64 version as fallback.${RESET}"
+      download_url="https://github.com/apernet/hysteria/releases/download/app%2Fv2.6.2/hysteria-linux-amd64"
+      filename="hysteria-linux-amd64"
+      ;;
+  esac
+
+  echo -e "${CYAN}Downloading Hysteria2 for $arch...${RESET}"
+  if wget -q --show-progress "$download_url" -O "$filename"; then
+    print_success "Download complete!"
+  else
+    echo -e "${RED}❌ Error: Failed to download Hysteria2. Please check your internet connection or the URL.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return 1 # Indicate failure
+  fi
+
+  echo -e "${CYAN}📦 Creating 'hysteria' folder and moving file...${RESET}"
+  mkdir -p hysteria
+  if mv "$filename" hysteria/hy2; then
+    print_success "Hysteria2 executable moved to hysteria/hy2."
+  else
+    echo -e "${RED}❌ Error: Failed to move Hysteria2 executable.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return 1 # Indicate failure
+  fi
+
+  echo -e "${CYAN}➕ Setting execute permissions...${RESET}"
+  if chmod +x hysteria/hy2; then
+    print_success "Execute permissions set for hysteria/hy2."
+  else
+    echo -e "${RED}❌ Error: Failed to set execute permissions.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return 1 # Indicate failure
+  fi
+
+  echo ""
+  print_success "Hysteria2 installation complete!"
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+  read -p ""
+}
+
 
 # --- Add New Server Action (Beautified) ---
 add_new_server_action() {
@@ -1257,10 +1345,10 @@ while true; do
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
-  echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
+  echo -e "${MAGENTA}1) Install Rstun${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
   echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
-  echo -e "${CYAN}4) Hysteria2 direct tunnel${RESET}" # Hysteria2 direct tunnel
+  echo -e "${MAGENTA}4)Install Hysteria2${RESET}" # Hysteria2 direct tunnel
   echo -e "${YELLOW}5) Certificate management${RESET}" # New: Certificate management
   echo -e "${RED}6) Uninstall TrustTunnel${RESET}" # Shifted from 4
   echo -e "${WHITE}7) Exit${RESET}" # Shifted from 5
@@ -1791,12 +1879,7 @@ while true; do
       esac
       ;;
     4)
-      # Hysteria2 direct tunnel
-      clear
-      echo -e "${CYAN}Hysteria2 direct tunnel selected!${RESET}"
-      echo -e "(اینجا می‌توانید عملکرد مربوط به Hysteria2 را اضافه کنید)"
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-      read -p ""
+      install_hysteria2_action
       ;;
     5)
       certificate_management_menu
