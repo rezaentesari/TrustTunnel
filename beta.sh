@@ -1258,6 +1258,545 @@ EOF
   read -p ""
 }
 
+# --- Initial Setup Function ---
+# This function performs one-time setup tasks like installing dependencies
+# and creating the 'trust' command symlink.
+perform_initial_setup() {
+  # Check if initial setup has already been performed
+  if [ -f "$SETUP_MARKER_FILE" ]; then
+    echo -e "${YELLOW}Initial setup already performed. Skipping prerequisites installation.${RESET}" # Updated message
+    # ensure_trust_command_available # Removed as per user request
+    return 0 # Exit successfully
+  fi
+
+  echo -e "${CYAN}Performing initial setup (installing dependencies)...${RESET}" # Performing initial setup (installing dependencies)...
+
+  # Install required tools
+  echo -e "${CYAN}Updating package lists and installing dependencies...${RESET}" # Updating package lists and installing dependencies...
+  sudo apt update
+  sudo apt install -y build-essential curl pkg-config libssl-dev git figlet certbot rustc cargo cron
+
+  # Default path for the Cargo environment file.
+  CARGO_ENV_FILE="$HOME/.cargo/env"
+
+  echo "Checking for Rust installation..." # Checking for Rust installation...
+
+  # Check if 'rustc' command is available in the system's PATH.
+  if command -v rustc >/dev/null 2>&1; then
+    # If 'rustc' is found, Rust is already installed.
+    echo "✅ Rust is already installed: $(rustc --version)" # Rust is already installed: rustc --version
+    RUST_IS_READY=true
+  else
+    # If 'rustc' is not found, start the installation.
+    echo "🦀 Rust is not installed. Installing..." # Rust is not installed. Installing...
+    RUST_IS_READY=false
+
+    # Download and run the rustup installer.
+    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+      echo "✅ Rust installed successfully." # Rust installed successfully.
+
+      # Source the Cargo environment file for the current script session.
+      if [ -f "$CARGO_ENV_FILE" ]; then
+        source "$CARGO_ENV_FILE"
+        echo "♻️ Cargo environment file sourced for this script session." # Cargo environment file sourced for this script session.
+      else
+        # Fallback if the environment file is not found.
+        echo "⚠️ Cargo environment file ($CARGO_ENV_FILE) not found. You might need to set PATH manually." # Cargo environment file (CARGO_ENV_FILE) not found. You might need to set PATH manually.
+        export PATH="$HOME/.cargo/bin:$PATH"
+      fi
+
+      # Display the installed version for confirmation.
+      if command -v rustc >/dev/null 2>&1; then
+        echo "✅ Installed Rust version: $(rustc --version)" # Installed Rust version: rustc --version
+        RUST_IS_READY=true
+      else
+        echo "❌ Rust is installed but 'rustc' is not available in the current PATH." # Rust is installed but 'rustc' is not available in the current PATH.
+      fi
+
+      echo ""
+      echo "------------------------------------------------------------------"
+      echo "⚠️ Important: To make Rust available in your terminal," # Important: To make Rust available in your terminal,
+      echo "    you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
+      echo "    source \"$CARGO_ENV_FILE\""
+      echo "    Run this command once in each new terminal session." # Run this command once in each new terminal session.
+      echo "------------------------------------------------------------------"
+
+    else
+      # Error message if installation fails.
+      echo "❌ An error occurred during Rust installation. Please check your internet connection or try again." # An error occurred during Rust installation. Please check your internet connection or try again.
+      return 1 # Indicate failure
+    fi
+  fi
+
+  # ensure_trust_command_available # Removed as per user request
+  if [ "$RUST_IS_READY" = true ]; then
+    sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
+    sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (excluding symlink) succeed
+    print_success "Initial setup complete." # Initial setup complete.
+    return 0
+  else
+    print_error "Rust is not ready. Skipping setup marker." # Rust is not ready. Skipping setup marker.
+    return 1 # Indicate failure
+  fi
+  echo ""
+  return 0
+}
+
+# --- Add New Direct Server Action ---
+add_new_direct_server_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  if [ ! -f "rstun/rstund" ]; then
+    echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
+    echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
+  echo -e "  (e.g., server.example.com)"
+  
+  # Validate Domain
+  local domain
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} "
+    read -p "" domain
+    if validate_host "$domain"; then
+      break
+    else
+      print_error "Invalid domain or IP address format. Please try again."
+    fi
+  done
+  echo ""
+
+  # Validate Email
+  local email
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
+    read -p "" email
+    if validate_email "$email"; then
+      break
+    else
+      print_error "Invalid email format. Please try again."
+    fi
+  done
+  echo ""
+
+  local cert_path="/etc/letsencrypt/live/$domain"
+
+  if [ -d "$cert_path" ]; then
+    print_success "SSL certificate for $domain already exists. Skipping Certbot."
+  else
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
+    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
+      print_success "SSL certificate obtained successfully."
+    else
+      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+  fi
+
+  # Proceed only if certificate acquisition was successful or it already existed
+  if [ -d "$cert_path" ]; then
+    echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
+    echo -e "  (Default listen port is 8800)"
+    
+    # Validate Listen Port
+    local listen_port
+    while true; do
+      echo -e "👉 ${WHITE}Enter listen port (1-65535, default 8800):${RESET} "
+      read -p "" listen_port_input
+      listen_port=${listen_port_input:-8800}
+      if validate_port "$listen_port"; then
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535."
+      fi
+    done
+
+    echo -e "👉 ${WHITE}Enter password:${RESET} "
+    read -p "" password
+    echo ""
+
+    if [[ -z "$password" ]]; then
+      echo -e "${RED}❌ Password cannot be empty!${RESET}"
+      echo ""
+      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+      read -p ""
+      return
+    fi
+
+    local service_file="/etc/systemd/system/trusttunnel-direct.service"
+
+    if systemctl is-active --quiet trusttunnel-direct.service || systemctl is-enabled --quiet trusttunnel-direct.service; then
+      echo -e "${YELLOW}🛑 Stopping existing Direct Trusttunnel service...${RESET}"
+      sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
+      sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
+      sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
+      sudo systemctl daemon-reload > /dev/null 2>&1
+      print_success "Existing Direct TrustTunnel service removed."
+    fi
+
+    cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+    sudo systemctl daemon-reload
+
+    echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel service...${RESET}"
+    sudo systemctl enable trusttunnel-direct.service > /dev/null 2>&1
+    sudo systemctl start trusttunnel-direct.service > /dev/null 2>&1
+
+    print_success "Direct TrustTunnel service started successfully!"
+  else
+    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs trusttunnel-direct.service
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- Add New Direct Client Action ---
+add_new_direct_client_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}        ➕ Add New Direct Client${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  # Prompt for the client name
+  echo -e "👉 ${WHITE}Enter client name (e.g., client1, client2):${RESET} "
+  read -p "" client_name
+  echo ""
+
+  # Construct the service name based on the client name
+  service_name="trusttunnel-direct-client-$client_name"
+  # Define the path for the systemd service file
+  service_file="/etc/systemd/system/${service_name}.service"
+
+  # Check if a service with the given name already exists
+  if [ -f "$service_file" ]; then
+    echo -e "${RED}❌ Service with this name already exists.${RESET}"
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return
+  fi
+
+  echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
+  echo -e "  (e.g., server.yourdomain.com:8800)"
+  
+  # Validate Server Address
+  local server_addr
+  while true; do
+    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} "
+    read -p "" server_addr_input
+    # Split into host and port for validation
+    local host_part=$(echo "$server_addr_input" | cut -d':' -f1)
+    local port_part=$(echo "$server_addr_input" | cut -d':' -f2)
+
+    if validate_host "$host_part" && validate_port "$port_part"; then
+      server_addr="$server_addr_input"
+      break
+    else
+      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)."
+    fi
+  done
+  echo ""
+
+  echo -e "${CYAN}📡 Tunnel Mode:${RESET}"
+  echo -e "  (tcp/udp/both)"
+  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} "
+  read -p "" tunnel_mode
+  echo ""
+
+  echo -e "🔑 ${WHITE}Password:${RESET} "
+  read -p "" password
+  echo ""
+
+  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}"
+  
+  local port_count
+  while true; do
+    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} "
+    read -p "" port_count_input
+    if [[ "$port_count_input" =~ ^[0-9]+$ ]] && (( port_count_input >= 0 )); then
+      port_count=$port_count_input
+      break
+    else
+      print_error "Invalid input. Please enter a non-negative number for port count."
+    fi
+  done
+  echo ""
+  
+  mappings=""
+  for ((i=1; i<=port_count; i++)); do
+    local port
+    while true; do
+      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} "
+      read -p "" port_input
+      if validate_port "$port_input"; then
+        port="$port_input"
+        break
+      else
+        print_error "Invalid port number. Please enter a number between 1 and 65535."
+      fi
+    done
+    mapping="OUT^0.0.0.0:$port^$port"
+    [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
+    echo ""
+  done
+
+  # Determine the mapping arguments based on the tunnel_mode
+  mapping_args=""
+  case "$tunnel_mode" in
+    "tcp")
+      mapping_args="--tcp-mappings \"$mappings\""
+      ;;
+    "udp")
+      mapping_args="--udp-mappings \"$mappings\""
+      ;;
+    "both")
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+    *)
+      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}"
+      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
+      ;;
+  esac
+
+  # Create the systemd service file
+  cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Direct TrustTunnel Client - $client_name
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
+Restart=always
+RestartSec=5
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+  sudo systemctl daemon-reload
+
+  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}"
+  sudo systemctl enable "$service_name" > /dev/null 2>&1
+  sudo systemctl start "$service_name" > /dev/null 2>&1
+
+  print_success "Direct client '$client_name' started as $service_name"
+
+  echo ""
+  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}"
+  read -p "" view_logs_choice
+  echo ""
+
+  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
+    show_service_logs "$service_name"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- New: Function to get a new SSL certificate using Certbot ---
+get_new_certificate_action() {
+  clear
+  echo ""
+  draw_line "$CYAN" "=" 40
+  echo -e "${CYAN}     ➕ Get New SSL Certificate${RESET}"
+  draw_line "$CYAN" "=" 40
+  echo ""
+
+  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
+  echo -e "  (e.g., yourdomain.com)"
+  
+  local domain
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your domain:${RESET} "
+    read -p "" domain
+    if validate_host "$domain"; then
+      break
+    else
+      print_error "Invalid domain or IP address format. Please try again."
+    fi
+  done
+  echo ""
+
+  local email
+  while true; do
+    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
+    read -p "" email
+    if validate_email "$email"; then
+      break
+    else
+      print_error "Invalid email format. Please try again."
+    fi
+  done
+  echo ""
+
+  local cert_path="/etc/letsencrypt/live/$domain"
+
+  if [ -d "$cert_path" ]; then
+    print_success "SSL certificate for $domain already exists. Skipping Certbot."
+  else
+    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
+    echo -e "${YELLOW}Ensure port 80 is open and not in use by another service.${RESET}"
+    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
+      print_success "SSL certificate obtained successfully for $domain."
+    else
+      print_error "❌ Failed to obtain SSL certificate for $domain. Check Certbot logs for details."
+      print_error "   Ensure your domain points to this server and port 80 is open."
+    fi
+  fi
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- New: Function to delete existing SSL certificates ---
+delete_certificates_action() {
+  clear
+  echo ""
+  draw_line "$RED" "=" 40
+  echo -e "${RED}     🗑️ Delete SSL Certificates${RESET}"
+  draw_line "$RED" "=" 40
+  echo ""
+
+  echo -e "${CYAN}🔍 Searching for existing SSL certificates...${RESET}"
+  # Find directories under /etc/letsencrypt/live/ that are not 'README'
+  mapfile -t cert_domains < <(sudo find /etc/letsencrypt/live -maxdepth 1 -mindepth 1 -type d ! -name "README" -exec basename {} \;)
+
+  if [ ${#cert_domains[@]} -eq 0 ]; then
+    print_error "No SSL certificates found to delete."
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return 1
+  fi
+
+  echo -e "${CYAN}📋 Please select a certificate to delete:${RESET}"
+  # Add a "Back to previous menu" option
+  cert_domains+=("Back to previous menu")
+  select selected_domain in "${cert_domains[@]}"; do
+    if [[ "$selected_domain" == "Back to previous menu" ]]; then
+      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+      echo ""
+      return 0
+    elif [ -n "$selected_domain" ]; then
+      break
+    else
+      print_error "Invalid selection. Please enter a valid number."
+    fi
+  done
+  echo ""
+
+  if [[ -z "$selected_domain" ]]; then
+    print_error "No certificate selected. Aborting deletion."
+    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+    read -p ""
+    return 1
+  fi
+
+  echo -e "${RED}⚠️ Are you sure you want to delete the certificate for '$selected_domain'? (y/N): ${RESET}"
+  read -p "" confirm_delete
+  echo ""
+
+  if [[ "$confirm_delete" =~ ^[Yy]$ ]]; then
+    echo -e "${CYAN}🗑️ Deleting certificate for '$selected_domain' using Certbot...${RESET}"
+    if sudo certbot delete --cert-name "$selected_domain"; then
+      print_success "Certificate for '$selected_domain' deleted successfully."
+    else
+      print_error "❌ Failed to delete certificate for '$selected_domain'. Check Certbot logs."
+    fi
+  else
+    echo -e "${YELLOW}Deletion cancelled for '$selected_domain'.${RESET}"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  read -p ""
+}
+
+# --- New: Certificate Management Menu Function ---
+certificate_management_menu() {
+  while true; do
+    clear
+    echo ""
+    draw_line "$GREEN" "=" 40
+    echo -e "${CYAN}     🔐 Certificate Management${RESET}"
+    draw_line "$GREEN" "=" 40
+    echo ""
+    echo -e "  ${YELLOW}1)${RESET} ${WHITE}Get new certificate${RESET}"
+    echo -e "  ${YELLOW}2)${RESET} ${WHITE}Delete certificates${RESET}"
+    echo -e "  ${YELLOW}3)${RESET} ${WHITE}Back to main menu${RESET}"
+    echo ""
+    draw_line "$GREEN" "-" 40
+    echo -e "👉 ${CYAN}Your choice:${RESET} "
+    read -p "" cert_choice
+    echo ""
+
+    case $cert_choice in
+      1)
+        get_new_certificate_action
+        ;;
+      2)
+        delete_certificates_action
+        ;;
+      3)
+        echo -e "${YELLOW}بازگشت به منوی اصلی...${RESET}"
+        break # Break out of this while loop to return to main menu
+        ;;
+      *)
+        echo -e "${RED}❌ Invalid option.${RESET}"
+        echo ""
+        echo -e "${YELLOW}Press Enter to continue...${RESET}"
+        read -p ""
+        ;;
+    esac
+  done
+}
+
+
 # --- Main Script Execution ---
 set -e # Exit immediately if a command exits with a non-zero status
 
@@ -1290,9 +1829,10 @@ while true; do
   echo "Select an option:" # Select an option:
   echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
-echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
-  echo -e "${RED}4) Uninstall TrustTunnel${RESET}" # Uninstall TrustTunnel
-    echo -e "${WHITE}5) Exit${RESET}" # Exit
+  echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
+  echo -e "${YELLOW}4) Certificate management${RESET}" # New: Certificate management
+  echo -e "${RED}5) Uninstall TrustTunnel${RESET}" # Shifted from 4
+  echo -e "${WHITE}6) Exit${RESET}" # Shifted from 5
   read -p "👉 Your choice: " choice # Your choice:
 
   case $choice in
@@ -1819,10 +2359,13 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           ;;
       esac
       ;;
-    4)
+    4) # New Certificate Management option
+      certificate_management_menu
+      ;;
+    5) # Shifted from 4
       uninstall_trusttunnel_action
     ;;
-    5)
+    6) # Shifted from 5
       exit 0
     ;;
     *)
@@ -1838,4 +2381,3 @@ else
 echo ""
   echo "🛑 Rust is not ready. Skipping the main menu." # Rust is not ready. Skipping the main menu.
 fi
-
