@@ -153,7 +153,7 @@ reset_timer() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}     ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
+  echo -e "${CYAN}        ⏰ Schedule Service Restart${RESET}" # Schedule Service Restart
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -296,7 +296,7 @@ delete_cron_job_action() {
   clear
   echo ""
   draw_line "$RED" "=" 40
-  echo -e "${RED}     🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
+  echo -e "${RED}        🗑️ Delete Scheduled Restart (Cron)${RESET}" # Delete Scheduled Restart (Cron)
   draw_line "$RED" "=" 40
   echo ""
 
@@ -464,7 +464,7 @@ install_trusttunnel_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}     📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
+  echo -e "${CYAN}        📥 Installing TrustTunnel${RESET}" # Installing TrustTunnel
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -552,11 +552,11 @@ install_trusttunnel_action() {
 }
 
 # --- Add New Server Action (Beautified) ---
-reverse_add_new_server_action() {
+add_new_server_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}     ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
+  echo -e "${CYAN}        ➕ Add New TrustTunnel Server${RESET}" # Add New TrustTunnel Server
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -728,11 +728,11 @@ EOF
   read -p ""
 
 }
-reverse_add_new_client_action() {
+add_new_client_action() {
   clear
   echo ""
   draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}     ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
+  echo -e "${CYAN}        ➕ Add New TrustTunnel Client${RESET}" # Add New TrustTunnel Client
   draw_line "$CYAN" "=" 40
   echo ""
 
@@ -935,9 +935,9 @@ perform_initial_setup() {
       echo ""
       echo "------------------------------------------------------------------"
       echo "⚠️ Important: To make Rust available in your terminal," # Important: To make Rust available in your terminal,
-      echo "     you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
-      echo "     source \"$CARGO_ENV_FILE\""
-      echo "     Run this command once in each new terminal session." # Run this command once in each new terminal session.
+      echo "    you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
+      echo "    source \"$CARGO_ENV_FILE\""
+      echo "    Run this command once in each new terminal session." # Run this command once in each new terminal session.
       echo "------------------------------------------------------------------"
 
     else
@@ -987,15 +987,16 @@ while true; do
   echo -e "Telegram Channel => @Erfan_XRay"
   echo -e "\033[0m${WHITE}Reverse tunnel over QUIC ( Based on rstun project)${WHITE}${RESET}" # Reverse tunnel over QUIC ( Based on rstun project)
   draw_green_line
-  echo -e "${GREEN}|${RESET}             ${WHITE}TrustTunnel Main Menu${RESET}             ${GREEN}|${RESET}" # TrustTunnel Main Menu
+  echo -e "${GREEN}|${RESET}      ${WHITE}TrustTunnel Main Menu${RESET}      ${GREEN}|${RESET}" # TrustTunnel Main Menu
   # echo -e "${YELLOW}You can also run this script anytime by typing: ${WHITE}trust${RESET}" # Removed as per user request
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
   echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
-  echo -e "${RED}3) Uninstall TrustTunnel${RESET}" # Uninstall TrustTunnel
-  echo -e "${WHITE}4) Exit${RESET}" # Exit
+echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
+  echo -e "${RED}4) Uninstall TrustTunnel${RESET}" # Uninstall TrustTunnel
+    echo -e "${WHITE}5) Exit${RESET}" # Exit
   read -p "👉 Your choice: " choice # Your choice:
 
   case $choice in
@@ -1043,7 +1044,7 @@ while true; do
             echo ""
             case $srv_choice in
               1)
-                reverse_add_new_server_action
+                add_new_server_action
               ;;
               2)
                 clear
@@ -1116,7 +1117,7 @@ while true; do
 
             case $client_choice in
               1)
-                reverse_add_new_client_action
+                add_new_client_action
               ;;
               2)
                 clear
@@ -1268,35 +1269,37 @@ while true; do
       esac
     ;;
     3)
-      clear # Clear screen for a fresh menu display
+      # Direct tunnel menu (copy of reverse tunnel with modified names)
+      clear
       echo ""
-      draw_line "$GREEN" "=" 40 # Top border
-      echo -e "${CYAN}        🌐 Choose Direct Tunnel Mode${RESET}" # Choose Direct Tunnel Mode
-      draw_line "$GREEN" "=" 40 # Separator
+      draw_line "$GREEN" "=" 40
+      echo -e "${CYAN}        🌐 Choose Direct Tunnel Mode${RESET}"
+      draw_line "$GREEN" "=" 40
       echo ""
-      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Server (Direct)${RESET}" # Server (Direct)
-      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Client (Direct)${RESET}" # Client (Direct)
-      echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}" # Return to main menu
+      echo -e "  ${YELLOW}1)${RESET} ${MAGENTA}Direct Server${RESET}"
+      echo -e "  ${YELLOW}2)${RESET} ${BLUE}Direct Client${RESET}"
+      echo -e "  ${YELLOW}3)${RESET} ${WHITE}Return to main menu${RESET}"
       echo ""
-      draw_line "$GREEN" "-" 40 # Bottom border
-      echo -e "👉 ${CYAN}Your choice:${RESET} " # Your choice:
+      draw_line "$GREEN" "-" 40
+      echo -e "👉 ${CYAN}Your choice:${RESET} "
       read -p "" direct_tunnel_choice
-      echo "" # Add a blank line for better spacing after input
+      echo ""
+
       case $direct_tunnel_choice in
         1)
           clear
-          # Direct Server Management Sub-menu
+          # Direct Server Management Sub-menu (copy of reverse server menu)
           while true; do
             clear
             echo ""
             draw_line "$GREEN" "=" 40
-            echo -e "${CYAN}        🔧 Rstun Direct Server Management${RESET}"
+            echo -e "${CYAN}        🔧 Direct Server Management${RESET}"
             draw_line "$GREEN" "=" 40
             echo ""
             echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new direct server${RESET}"
-            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show service logs${RESET}"
-            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete service${RESET}"
-            echo -e "  ${YELLOW}4)${RESET} ${MAGENTA}Schedule server restart${RESET}"
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show direct service logs${RESET}"
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete direct service${RESET}"
+            echo -e "  ${YELLOW}4)${RESET} ${MAGENTA}Schedule direct server restart${RESET}"
             echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}"
             echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}"
             echo ""
@@ -1306,52 +1309,52 @@ while true; do
             echo ""
             case $direct_srv_choice in
               1)
-                direct_add_new_server_action
-              ;;
+                add_new_direct_server_action
+                ;;
               2)
                 clear
-                service_file="/etc/systemd/system/directtunnel.service"
+                service_file="/etc/systemd/system/trusttunnel-direct.service"
                 if [ -f "$service_file" ]; then
-                  show_service_logs "directtunnel.service"
+                  show_service_logs "trusttunnel-direct.service"
                 else
-                  echo -e "${RED}❌ Service 'directtunnel.service' not found. Cannot show logs.${RESET}"
+                  echo -e "${RED}❌ Service 'trusttunnel-direct.service' not found. Cannot show logs.${RESET}"
                   echo ""
                   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
                   read -p ""
                 fi
-              ;;
+                ;;
               3)
                 clear
-                service_file="/etc/systemd/system/directtunnel.service"
+                service_file="/etc/systemd/system/trusttunnel-direct.service"
                 if [ -f "$service_file" ]; then
-                  echo -e "${YELLOW}🛑 Stopping and deleting directtunnel.service...${RESET}"
-                  sudo systemctl stop directtunnel.service > /dev/null 2>&1
-                  sudo systemctl disable directtunnel.service > /dev/null 2>&1
+                  echo -e "${YELLOW}🛑 Stopping and deleting trusttunnel-direct.service...${RESET}"
+                  sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
+                  sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
                   sudo rm -f "$service_file" > /dev/null 2>&1
                   sudo systemctl daemon-reload > /dev/null 2>&1
-                  print_success "Service deleted."
+                  print_success "Direct service deleted."
                 else
-                  echo -e "${RED}❌ Service 'directtunnel.service' not found. Nothing to delete.${RESET}"
+                  echo -e "${RED}❌ Service 'trusttunnel-direct.service' not found. Nothing to delete.${RESET}"
                 fi
                 echo ""
                 echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
                 read -p ""
-              ;;
+                ;;
               4)
-                reset_timer "directtunnel"
-              ;;
+                reset_timer "trusttunnel-direct"
+                ;;
               5)
                 delete_cron_job_action
-              ;;
+                ;;
               6)
                 break
-              ;;
+                ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}"
                 echo ""
                 echo -e "${YELLOW}Press Enter to continue...${RESET}"
                 read -p ""
-              ;;
+                ;;
             esac
           done
           ;;
@@ -1361,13 +1364,13 @@ while true; do
             clear
             echo ""
             draw_line "$GREEN" "=" 40
-            echo -e "${CYAN}        📡 Rstun Direct Client Management${RESET}"
+            echo -e "${CYAN}        📡 Direct Client Management${RESET}"
             draw_line "$GREEN" "=" 40
             echo ""
             echo -e "  ${YELLOW}1)${RESET} ${WHITE}Add new direct client${RESET}"
-            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Client Log${RESET}"
-            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a client${RESET}"
-            echo -e "  ${YELLOW}4)${RESET} ${BLUE}Schedule client restart${RESET}"
+            echo -e "  ${YELLOW}2)${RESET} ${WHITE}Show Direct Client Log${RESET}"
+            echo -e "  ${YELLOW}3)${RESET} ${WHITE}Delete a direct client${RESET}"
+            echo -e "  ${YELLOW}4)${RESET} ${BLUE}Schedule direct client restart${RESET}"
             echo -e "  ${YELLOW}5)${RESET} ${RED}Delete scheduled restart${RESET}"
             echo -e "  ${YELLOW}6)${RESET} ${WHITE}Back to main menu${RESET}"
             echo ""
@@ -1375,23 +1378,25 @@ while true; do
             echo -e "👉 ${CYAN}Your choice:${RESET} "
             read -p "" direct_client_choice
             echo ""
+
             case $direct_client_choice in
               1)
-                direct_add_new_client_action
-              ;;
+                add_new_direct_client_action
+                ;;
               2)
                 clear
                 echo ""
                 draw_line "$CYAN" "=" 40
-                echo -e "${CYAN}        📊 Rstun Direct Client Logs${RESET}"
+                echo -e "${CYAN}        📊 Direct Client Logs${RESET}"
                 draw_line "$CYAN" "=" 40
                 echo ""
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
-                mapfile -t services < <(systemctl list-units --type=service --all | grep 'directtunnel-' | awk '{print $1}' | sed 's/.service$//')
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
                   echo -e "${RED}❌ No direct clients found.${RESET}"
                   echo ""
                   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
                 else
                   echo -e "${CYAN}📋 Please select a service to see log:${RESET}"
                   services+=("Back to previous menu")
@@ -1411,20 +1416,21 @@ while true; do
                   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
                   read -p ""
                 fi
-              ;;
+                ;;
               3)
                 clear
                 echo ""
                 draw_line "$CYAN" "=" 40
-                echo -e "${CYAN}        🗑️ Delete Rstun Direct Client${RESET}"
+                echo -e "${CYAN}        🗑️ Delete Direct Client${RESET}"
                 draw_line "$CYAN" "=" 40
                 echo ""
                 echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
-                mapfile -t services < <(systemctl list-units --type=service --all | grep 'directtunnel-' | awk '{print $1}' | sed 's/.service$//')
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
                 if [ ${#services[@]} -eq 0 ]; then
                   echo -e "${RED}❌ No direct clients found.${RESET}"
                   echo ""
                   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
                 else
                   echo -e "${CYAN}📋 Please select a service to delete:${RESET}"
                   services+=("Back to previous menu")
@@ -1434,13 +1440,17 @@ while true; do
                       echo ""
                       break 2
                     elif [ -n "$selected_service" ]; then
-                      # حذف سرویس انتخاب شده
-                      sudo systemctl stop "$selected_service.service" > /dev/null 2>&1
-                      sudo systemctl disable "$selected_service.service" > /dev/null 2>&1
-                      sudo rm -f "/etc/systemd/system/$selected_service.service" > /dev/null 2>&1
+                      service_file="/etc/systemd/system/${selected_service}.service"
+                      echo -e "${YELLOW}🛑 Stopping $selected_service...${RESET}"
+                      sudo systemctl stop "$selected_service" > /dev/null 2>&1
+                      sudo systemctl disable "$selected_service" > /dev/null 2>&1
+                      sudo rm -f "$service_file" > /dev/null 2>&1
                       sudo systemctl daemon-reload > /dev/null 2>&1
                       print_success "Direct client '$selected_service' deleted."
-                      # حذف کران جاب‌های مرتبط
+                      echo -e "${CYAN}🧹 Removing cron jobs for '$selected_service'...${RESET}"
+                      (sudo crontab -l 2>/dev/null | grep -v "# TrustTunnel automated restart for $selected_service$") | sudo crontab -
+                      print_success "Cron jobs for '$selected_service' removed."
+                      break
                     else
                       echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
                     fi
@@ -1449,36 +1459,64 @@ while true; do
                   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
                   read -p ""
                 fi
-              ;;
+                ;;
               4)
-                reset_timer "directtunnel"
-              ;;
+                clear
+                echo ""
+                draw_line "$CYAN" "=" 40
+                echo -e "${CYAN}        ⏰ Schedule Direct Client Restart${RESET}"
+                draw_line "$CYAN" "=" 40
+                echo ""
+                echo -e "${CYAN}🔍 Searching for direct clients ...${RESET}"
+                mapfile -t services < <(systemctl list-units --type=service --all | grep 'trusttunnel-direct-' | awk '{print $1}' | sed 's/.service$//')
+                if [ ${#services[@]} -eq 0 ]; then
+                  echo -e "${RED}❌ No direct clients found to schedule. Please add a client first.${RESET}"
+                  echo ""
+                  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+                  read -p ""
+                else
+                  echo -e "${CYAN}📋 Please select which direct client service to schedule for restart:${RESET}"
+                  services+=("Back to previous menu")
+                  select selected_client_service in "${services[@]}"; do
+                    if [[ "$selected_client_service" == "Back to previous menu" ]]; then
+                      echo -e "${YELLOW}Returning to previous menu...${RESET}"
+                      echo ""
+                      break 2
+                    elif [ -n "$selected_client_service" ]; then
+                      reset_timer "$selected_client_service"
+                      break
+                    else
+                      echo -e "${RED}⚠️ Invalid selection. Please enter a valid number.${RESET}"
+                    fi
+                  done
+                fi
+                ;;
               5)
                 delete_cron_job_action
-              ;;
+                ;;
               6)
                 break
-              ;;
+                ;;
               *)
                 echo -e "${RED}❌ Invalid option.${RESET}"
                 echo ""
                 echo -e "${YELLOW}Press Enter to continue...${RESET}"
                 read -p ""
-              ;;
+                ;;
             esac
           done
           ;;
         3)
           break
-        ;;
+          ;;
         *)
           echo -e "${RED}❌ Invalid option.${RESET}"
           echo ""
           echo -e "${YELLOW}Press Enter to continue...${RESET}"
           read -p ""
-        ;;
+          ;;
       esac
-    ;;
+      ;;
     4)
       uninstall_trusttunnel_action
     ;;
