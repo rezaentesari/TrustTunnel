@@ -1608,7 +1608,7 @@ while true; do
                 echo -e "${YELLOW}Press Enter to continue...${RESET}" # Press Enter to continue...
                 read -p ""
               ;;
-            esac
+            </case>
           done
           ;;
         3)
