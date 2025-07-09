@@ -122,7 +122,7 @@ validate_host() {
 #     print_success "Attempted to create/update 'trust' command symlink."
 #     if [ -L "$TRUST_COMMAND_PATH" ] && [ "$(readlink "$TRUST_COMMAND_PATH" 2>/dev/null)" = "$TRUST_SCRIPT_PATH" ]; then
 #       symlink_ok=true
-#     fi
+#     Fİ
 #   else
 #     print_error "Failed to create/update 'trust' command symlink initially. Check permissions."
 #   fi
@@ -1060,7 +1060,6 @@ add_new_direct_server_action() {
     if systemctl is-active --quiet trusttunnel-direct.service || systemctl is-enabled --quiet trusttunnel-direct.service; then
       echo -e "${YELLOW}🛑 Stopping existing Direct Trusttunnel service...${RESET}"
       sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
-      echo -e "${YELLOW}🗑️ Disabling and removing existing Direct Trusttunnel service...${RESET}"
       sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
       sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
       sudo systemctl daemon-reload > /dev/null 2>&1
@@ -1555,7 +1554,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           done
           ;;
         3)
-          return
+          break # Changed from 'return' to 'break'
           ;;
         *)
           echo -e "${RED}❌ Invalid option.${RESET}" # Invalid option.
@@ -1804,7 +1803,7 @@ echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
           done
           ;;
         3)
-          break
+          break # Changed from 'return' to 'break'
           ;;
         *)
           echo -e "${RED}❌ Invalid option.${RESET}"
