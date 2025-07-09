@@ -1225,12 +1225,12 @@ certificate_management_menu() {
 
 # --- Hysteria2 Installation Check ---
 check_and_install_hysteria2() {
-  if command -v hy2 >/dev/null 2>&1; then
+  if command -v hysteria >/dev/null 2>&1; then
     echo -e "${GREEN}Hysteria2 (hy2) is already installed.${RESET}"
   else
     echo -e "${YELLOW}Installing Hysteria2 (hy2)...${RESET}"
     bash <(curl -fsSL https://get.hy2.sh/)
-    if command -v hy2 >/dev/null 2>&1; then
+    if command -v hysteria >/dev/null 2>&1; then
       echo -e "${GREEN}Hysteria2 (hy2) installed successfully.${RESET}"
     else
       echo -e "${RED}Failed to install Hysteria2 (hy2). Please check your network or permissions.${RESET}"
