@@ -569,124 +569,112 @@ add_new_server_action() {
     return # Use return instead of continue in a function
   fi
 
-  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}" # Domain and Email for SSL Certificate:
-  echo -e "  (e.g., server.example.com)"
-  
-  # Validate Domain
-  local domain
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} " # Please enter your domain pointed to this server:
-    read -p "" domain
-    if validate_host "$domain"; then
-      break
-    else
-      print_error "Invalid domain or IP address format. Please try again." # Invalid domain or IP address format. Please try again.
-    fi
-  done
-  echo ""
-
-  # Validate Email
-  local email
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your email:${RESET} " # Please enter your email:
-    read -p "" email
-    if validate_email "$email"; then
-      break
-    else
-      print_error "Invalid email format. Please try again." # Invalid email format. Please try again.
-    fi
-  done
-  echo ""
-
-  local cert_path="/etc/letsencrypt/live/$domain"
-
-  if [ -d "$cert_path" ]; then
-    print_success "SSL certificate for $domain already exists. Skipping Certbot." # SSL certificate for domain already exists. Skipping Certbot.
-  else
-    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}" # Requesting SSL certificate with Certbot...
-    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
-      print_success "SSL certificate obtained successfully." # SSL certificate obtained successfully.
-    else
-      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}" # Failed to obtain SSL certificate. Cannot start server without SSL.
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
-      read -p ""
-      return # Use return instead of exit 1
-    fi
+  # لیست کردن certificate های موجود
+  certs_dir="/etc/letsencrypt/live"
+  if [ ! -d "$certs_dir" ]; then
+    echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
   fi
 
-  # Proceed only if certificate acquisition was successful or it already existed
-  if [ -d "$cert_path" ]; then
-    echo ""
-    echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
-    echo -e "  (Default tunneling address port is 6060)"
-    
-    # Validate Listen Port
-    local listen_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter tunneling address port (1-65535, default 6060):${RESET} " # Enter tunneling address port (1-65535, default 6060):
-      read -p "" listen_port_input
-      listen_port=${listen_port_input:-6060} # Apply default if empty
-      if validate_port "$listen_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
+  certs=("$certs_dir"/*)
+  if [ ${#certs[@]} -eq 0 ]; then
+    echo -e "${RED}❌ No certificates found in $certs_dir.${RESET}"
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
+    read -p ""
+    return
+  fi
 
-    echo -e "  (Default TCP upstream port is 8800)"
-    # Validate TCP Upstream Port
-    local tcp_upstream_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 8800):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
-      read -p "" tcp_upstream_port_input
-      tcp_upstream_port=${tcp_upstream_port_input:-8800} # Apply default if empty
-      if validate_port "$tcp_upstream_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
+  echo -e "${CYAN}Available SSL Certificates:${RESET}"
+  for i in "${!certs[@]}"; do
+    cert_name=$(basename "${certs[$i]}")
+    echo -e "  ${YELLOW}$((i+1)))${RESET} ${WHITE}$cert_name${RESET}"
+  done
 
-    echo -e "  (Default UDP upstream port is 8800)"
-    # Validate UDP Upstream Port
-    local udp_upstream_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 8800):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
-      read -p "" udp_upstream_port_input
-      udp_upstream_port=${udp_upstream_port_input:-8800} # Apply default if empty
-      if validate_port "$udp_upstream_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
-      fi
-    done
-
-    echo -e "👉 ${WHITE}Enter password:${RESET} " # Enter password:
-    read -p "" password
-    echo ""
-
-    if [[ -z "$password" ]]; then
-      echo -e "${RED}❌ Password cannot be empty!${RESET}" # Password cannot be empty!
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
-      read -p ""
-      return # Use return instead of exit 1
+  local cert_choice
+  while true; do
+    echo -e "👉 ${WHITE}Select a certificate by number:${RESET} "
+    read -p "" cert_choice
+    if [[ "$cert_choice" =~ ^[0-9]+$ ]] && [ "$cert_choice" -ge 1 ] && [ "$cert_choice" -le ${#certs[@]} ]; then
+      break
+    else
+      print_error "Invalid selection. Please enter a valid number."
     fi
+  done
+  cert_path="${certs[$((cert_choice-1))]}"
+  echo -e "${GREEN}Selected certificate: $cert_path${RESET}"
+  echo ""
 
-    local service_file="/etc/systemd/system/trusttunnel.service"
-
-    if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
-      echo -e "${YELLOW}🛑 Stopping existing Trusttunnel service...${RESET}" # Stopping existing Trusttunnel service...
-      sudo systemctl stop trusttunnel.service > /dev/null 2>&1
-      echo -e "${YELLOW}🗑️ Disabling and removing existing Trusttunnel service...${RESET}" # Disabling and removing existing Trusttunnel service...
-      sudo systemctl disable trusttunnel.service > /dev/null 2>&1
-      sudo rm -f /etc/systemd/system/trusttunnel.service > /dev/null 2>&1
-      sudo systemctl daemon-reload > /dev/null 2>&1
-      print_success "Existing TrustTunnel service removed." # Existing TrustTunnel service removed.
+  echo -e "${CYAN}⚙️ Server Configuration:${RESET}" # Server Configuration:
+  echo -e "  (Default tunneling address port is 6060)"
+  
+  # Validate Listen Port
+  local listen_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter tunneling address port (1-65535, default 6060):${RESET} " # Enter tunneling address port (1-65535, default 6060):
+    read -p "" listen_port_input
+    listen_port=${listen_port_input:-6060} # Apply default if empty
+    if validate_port "$listen_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
     fi
+  done
 
-    cat <<EOF | sudo tee "$service_file" > /dev/null
+  echo -e "  (Default TCP upstream port is 8800)"
+  # Validate TCP Upstream Port
+  local tcp_upstream_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter TCP upstream port (1-65535, default 8800):${RESET} " # Enter TCP upstream port (1-65535, default 8800):
+    read -p "" tcp_upstream_port_input
+    tcp_upstream_port=${tcp_upstream_port_input:-8800} # Apply default if empty
+    if validate_port "$tcp_upstream_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+    fi
+  done
+
+  echo -e "  (Default UDP upstream port is 8800)"
+  # Validate UDP Upstream Port
+  local udp_upstream_port
+  while true; do
+    echo -e "👉 ${WHITE}Enter UDP upstream port (1-65535, default 8800):${RESET} " # Enter UDP upstream port (1-65535, default 8800):
+    read -p "" udp_upstream_port_input
+    udp_upstream_port=${udp_upstream_port_input:-8800} # Apply default if empty
+    if validate_port "$udp_upstream_port"; then
+      break
+    else
+      print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
+    fi
+  done
+
+  echo -e "👉 ${WHITE}Enter password:${RESET} " # Enter password:
+  read -p "" password
+  echo ""
+
+  if [[ -z "$password" ]]; then
+    echo -e "${RED}❌ Password cannot be empty!${RESET}" # Password cannot be empty!
+    echo ""
+    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
+    read -p ""
+    return # Use return instead of exit 1
+  fi
+
+  local service_file="/etc/systemd/system/trusttunnel.service"
+
+  if systemctl is-active --quiet trusttunnel.service || systemctl is-enabled --quiet trusttunnel.service; then
+    echo -e "${YELLOW}🛑 Stopping existing Trusttunnel service...${RESET}" # Stopping existing Trusttunnel service...
+    sudo systemctl stop trusttunnel.service > /dev/null 2>&1
+    echo -e "${YELLOW}🗑️ Disabling and removing existing Trusttunnel service...${RESET}" # Disabling and removing existing Trusttunnel service...
+    sudo systemctl disable trusttunnel.service > /dev/null 2>&1
+    sudo rm -f /etc/systemd/system/trusttunnel.service > /dev/null 2>&1
+    sudo systemctl daemon-reload > /dev/null 2>&1
+    print_success "Existing TrustTunnel service removed." # TrustTunnel service removed.
+  fi
+
+  cat <<EOF | sudo tee "$service_file" > /dev/null
 [Unit]
 Description=TrustTunnel Service
 After=network.target
@@ -702,32 +690,19 @@ User=$(whoami)
 WantedBy=multi-user.target
 EOF
 
-    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
-    sudo systemctl daemon-reload
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
+  sudo systemctl daemon-reload
 
-    echo -e "${CYAN}🚀 Enabling and starting Trusttunnel service...${RESET}" # Enabling and starting Trusttunnel service...
-    sudo systemctl enable trusttunnel.service > /dev/null 2>&1
-    sudo systemctl start trusttunnel.service > /dev/null 2>&1
+  echo -e "${CYAN}🚀 Enabling and starting Trusttunnel service...${RESET}" # Enabling and starting Trusttunnel service...
+  sudo systemctl enable trusttunnel.service > /dev/null 2>&1
+  sudo systemctl start trusttunnel.service > /dev/null 2>&1
 
-    print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
-  else
-    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}" # SSL certificate not available. Server setup aborted.
-  fi
-
+  print_success "TrustTunnel service started successfully!" # TrustTunnel service started successfully!
   echo ""
-  echo -e "${YELLOW}Do you want to view the logs for trusttunnel.service now? (y/N): ${RESET}" # Do you want to view the logs for trusttunnel.service now? (y/N):
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs trusttunnel.service
-  fi
-
-  echo ""
-  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
+  echo -e "${YELLOW}Press Enter to return to main menu...${RESET}" # Press Enter to return to main menu...
   read -p ""
-
 }
+
 add_new_client_action() {
   clear
   echo ""
@@ -864,15 +839,6 @@ EOF
   print_success "Client '$client_name' started as $service_name" # Client 'client_name' started as service_name
 
   echo ""
-  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}" # Do you want to view the logs for client_name now? (y/N):
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs "$service_name"
-  fi
-
-  echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
 }
@@ -1095,15 +1061,6 @@ EOF
   fi
 
   echo ""
-  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}"
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs trusttunnel-direct.service
-  fi
-
-  echo ""
   echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
   read -p ""
 }
@@ -1142,7 +1099,7 @@ add_new_direct_client_action() {
   # Validate Server Address
   local server_addr
   while true; do
-    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} "
+    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} " # Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):
     read -p "" server_addr_input
     # Split into host and port for validation
     local host_part=$(echo "$server_addr_input" | cut -d':' -f1)
@@ -1152,32 +1109,32 @@ add_new_direct_client_action() {
       server_addr="$server_addr_input"
       break
     else
-      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)."
+      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)." # Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800).
     fi
   done
   echo ""
 
-  echo -e "${CYAN}📡 Tunnel Mode:${RESET}"
+  echo -e "${CYAN}📡 Tunnel Mode:${RESET}" # Tunnel Mode:
   echo -e "  (tcp/udp/both)"
-  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} "
+  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} " # Tunnel mode ? (tcp/udp/both):
   read -p "" tunnel_mode
   echo ""
 
-  echo -e "🔑 ${WHITE}Password:${RESET} "
+  echo -e "🔑 ${WHITE}Password:${RESET} " # Password:
   read -p "" password
   echo ""
 
-  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}"
+  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}" # Port Mapping Configuration:
   
   local port_count
   while true; do
-    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} "
+    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} " # How many ports to tunnel?
     read -p "" port_count_input
     if [[ "$port_count_input" =~ ^[0-9]+$ ]] && (( port_count_input >= 0 )); then
       port_count=$port_count_input
       break
     else
-      print_error "Invalid input. Please enter a non-negative number for port count."
+      print_error "Invalid input. Please enter a non-negative number for port count." # Invalid input. Please enter a non-negative number for port count.
     fi
   done
   echo ""
@@ -1186,13 +1143,13 @@ add_new_direct_client_action() {
   for ((i=1; i<=port_count; i++)); do
     local port
     while true; do
-      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} "
+      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} " # Enter Port #i (1-65535):
       read -p "" port_input
       if validate_port "$port_input"; then
         port="$port_input"
         break
       else
-        print_error "Invalid port number. Please enter a number between 1 and 65535."
+        print_error "Invalid port number. Please enter a number between 1 and 65535." # Invalid port number. Please enter a number between 1 and 65535.
       fi
     done
     mapping="OUT^0.0.0.0:$port^$port"
@@ -1213,7 +1170,7 @@ add_new_direct_client_action() {
       mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
       ;;
     *)
-      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}"
+      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}" # Invalid tunnel mode specified. Using 'both' as default.
       mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
       ;;
   esac
@@ -1235,407 +1192,17 @@ User=$(whoami)
 WantedBy=multi-user.target
 EOF
 
-  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
+  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}" # Reloading systemd daemon...
   sudo systemctl daemon-reload
 
-  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}"
+  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}" # Enabling and starting Direct Trusttunnel client service...
   sudo systemctl enable "$service_name" > /dev/null 2>&1
   sudo systemctl start "$service_name" > /dev/null 2>&1
 
   print_success "Direct client '$client_name' started as $service_name"
 
   echo ""
-  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}"
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs "$service_name"
-  fi
-
-  echo ""
-  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
-  read -p ""
-}
-
-# --- Initial Setup Function ---
-# This function performs one-time setup tasks like installing dependencies
-# and creating the 'trust' command symlink.
-perform_initial_setup() {
-  # Check if initial setup has already been performed
-  if [ -f "$SETUP_MARKER_FILE" ]; then
-    echo -e "${YELLOW}Initial setup already performed. Skipping prerequisites installation.${RESET}" # Updated message
-    # ensure_trust_command_available # Removed as per user request
-    return 0 # Exit successfully
-  fi
-
-  echo -e "${CYAN}Performing initial setup (installing dependencies)...${RESET}" # Performing initial setup (installing dependencies)...
-
-  # Install required tools
-  echo -e "${CYAN}Updating package lists and installing dependencies...${RESET}" # Updating package lists and installing dependencies...
-  sudo apt update
-  sudo apt install -y build-essential curl pkg-config libssl-dev git figlet certbot rustc cargo cron
-
-  # Default path for the Cargo environment file.
-  CARGO_ENV_FILE="$HOME/.cargo/env"
-
-  echo "Checking for Rust installation..." # Checking for Rust installation...
-
-  # Check if 'rustc' command is available in the system's PATH.
-  if command -v rustc >/dev/null 2>&1; then
-    # If 'rustc' is found, Rust is already installed.
-    echo "✅ Rust is already installed: $(rustc --version)" # Rust is already installed: rustc --version
-    RUST_IS_READY=true
-  else
-    # If 'rustc' is not found, start the installation.
-    echo "🦀 Rust is not installed. Installing..." # Rust is not installed. Installing...
-    RUST_IS_READY=false
-
-    # Download and run the rustup installer.
-    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
-      echo "✅ Rust installed successfully." # Rust installed successfully.
-
-      # Source the Cargo environment file for the current script session.
-      if [ -f "$CARGO_ENV_FILE" ]; then
-        source "$CARGO_ENV_FILE"
-        echo "♻️ Cargo environment file sourced for this script session." # Cargo environment file sourced for this script session.
-      else
-        # Fallback if the environment file is not found.
-        echo "⚠️ Cargo environment file ($CARGO_ENV_FILE) not found. You might need to set PATH manually." # Cargo environment file (CARGO_ENV_FILE) not found. You might need to set PATH manually.
-        export PATH="$HOME/.cargo/bin:$PATH"
-      fi
-
-      # Display the installed version for confirmation.
-      if command -v rustc >/dev/null 2>&1; then
-        echo "✅ Installed Rust version: $(rustc --version)" # Installed Rust version: rustc --version
-        RUST_IS_READY=true
-      else
-        echo "❌ Rust is installed but 'rustc' is not available in the current PATH." # Rust is installed but 'rustc' is not available in the current PATH.
-      fi
-
-      echo ""
-      echo "------------------------------------------------------------------"
-      echo "⚠️ Important: To make Rust available in your terminal," # Important: To make Rust available in your terminal,
-      echo "    you need to restart your terminal or run this command:" # you need to restart your terminal or run this command:
-      echo "    source \"$CARGO_ENV_FILE\""
-      echo "    Run this command once in each new terminal session." # Run this command once in each new terminal session.
-      echo "------------------------------------------------------------------"
-
-    else
-      # Error message if installation fails.
-      echo "❌ An error occurred during Rust installation. Please check your internet connection or try again." # An error occurred during Rust installation. Please check your internet connection or try again.
-      return 1 # Indicate failure
-    fi
-  fi
-
-  # ensure_trust_command_available # Removed as per user request
-  if [ "$RUST_IS_READY" = true ]; then
-    sudo mkdir -p "$(dirname "$SETUP_MARKER_FILE")" # Ensure directory exists for marker file
-    sudo touch "$SETUP_MARKER_FILE" # Create marker file only if all initial setup steps (excluding symlink) succeed
-    print_success "Initial setup complete." # Initial setup complete.
-    return 0
-  else
-    print_error "Rust is not ready. Skipping setup marker." # Rust is not ready. Skipping setup marker.
-    return 1 # Indicate failure
-  fi
-  echo ""
-  return 0
-}
-
-# --- Add New Direct Server Action ---
-add_new_direct_server_action() {
-  clear
-  echo ""
-  draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New Direct Server${RESET}"
-  draw_line "$CYAN" "=" 40
-  echo ""
-
-  if [ ! -f "rstun/rstund" ]; then
-    echo -e "${RED}❗ Server build (rstun/rstund) not found.${RESET}"
-    echo -e "${YELLOW}Please run 'Install TrustTunnel' option from the main menu first.${RESET}"
-    echo ""
-    echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-    read -p ""
-    return
-  fi
-
-  echo -e "${CYAN}🌐 Domain and Email for SSL Certificate:${RESET}"
-  echo -e "  (e.g., server.example.com)"
-  
-  # Validate Domain
-  local domain
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your domain pointed to this server:${RESET} "
-    read -p "" domain
-    if validate_host "$domain"; then
-      break
-    else
-      print_error "Invalid domain or IP address format. Please try again."
-    fi
-  done
-  echo ""
-
-  # Validate Email
-  local email
-  while true; do
-    echo -e "👉 ${WHITE}Please enter your email:${RESET} "
-    read -p "" email
-    if validate_email "$email"; then
-      break
-    else
-      print_error "Invalid email format. Please try again."
-    fi
-  done
-  echo ""
-
-  local cert_path="/etc/letsencrypt/live/$domain"
-
-  if [ -d "$cert_path" ]; then
-    print_success "SSL certificate for $domain already exists. Skipping Certbot."
-  else
-    echo -e "${CYAN}🔐 Requesting SSL certificate with Certbot...${RESET}"
-    if sudo certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email"; then
-      print_success "SSL certificate obtained successfully."
-    else
-      echo -e "${RED}❌ Failed to obtain SSL certificate. Cannot start server without SSL.${RESET}"
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-      read -p ""
-      return
-    fi
-  fi
-
-  # Proceed only if certificate acquisition was successful or it already existed
-  if [ -d "$cert_path" ]; then
-    echo -e "${CYAN}⚙️ Server Configuration:${RESET}"
-    echo -e "  (Default listen port is 8800)"
-    
-    # Validate Listen Port
-    local listen_port
-    while true; do
-      echo -e "👉 ${WHITE}Enter listen port (1-65535, default 8800):${RESET} "
-      read -p "" listen_port_input
-      listen_port=${listen_port_input:-8800}
-      if validate_port "$listen_port"; then
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535."
-      fi
-    done
-
-    echo -e "👉 ${WHITE}Enter password:${RESET} "
-    read -p "" password
-    echo ""
-
-    if [[ -z "$password" ]]; then
-      echo -e "${RED}❌ Password cannot be empty!${RESET}"
-      echo ""
-      echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
-      read -p ""
-      return
-    fi
-
-    local service_file="/etc/systemd/system/trusttunnel-direct.service"
-
-    if systemctl is-active --quiet trusttunnel-direct.service || systemctl is-enabled --quiet trusttunnel-direct.service; then
-      echo -e "${YELLOW}🛑 Stopping existing Direct Trusttunnel service...${RESET}"
-      sudo systemctl stop trusttunnel-direct.service > /dev/null 2>&1
-      sudo systemctl disable trusttunnel-direct.service > /dev/null 2>&1
-      sudo rm -f /etc/systemd/system/trusttunnel-direct.service > /dev/null 2>&1
-      sudo systemctl daemon-reload > /dev/null 2>&1
-      print_success "Existing Direct TrustTunnel service removed."
-    fi
-
-    cat <<EOF | sudo tee "$service_file" > /dev/null
-[Unit]
-Description=Direct TrustTunnel Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=$(pwd)/rstun/rstund --addr 0.0.0.0:$listen_port --password "$password" --cert "$cert_path/fullchain.pem" --key "$cert_path/privkey.pem"
-Restart=always
-RestartSec=5
-User=$(whoami)
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
-    sudo systemctl daemon-reload
-
-    echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel service...${RESET}"
-    sudo systemctl enable trusttunnel-direct.service > /dev/null 2>&1
-    sudo systemctl start trusttunnel-direct.service > /dev/null 2>&1
-
-    print_success "Direct TrustTunnel service started successfully!"
-  else
-    echo -e "${RED}❌ SSL certificate not available. Server setup aborted.${RESET}"
-  fi
-
-  echo ""
-  echo -e "${YELLOW}Do you want to view the logs for trusttunnel-direct.service now? (y/N): ${RESET}"
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs trusttunnel-direct.service
-  fi
-
-  echo ""
-  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
-  read -p ""
-}
-
-# --- Add New Direct Client Action ---
-add_new_direct_client_action() {
-  clear
-  echo ""
-  draw_line "$CYAN" "=" 40
-  echo -e "${CYAN}        ➕ Add New Direct Client${RESET}"
-  draw_line "$CYAN" "=" 40
-  echo ""
-
-  # Prompt for the client name
-  echo -e "👉 ${WHITE}Enter client name (e.g., client1, client2):${RESET} "
-  read -p "" client_name
-  echo ""
-
-  # Construct the service name based on the client name
-  service_name="trusttunnel-direct-client-$client_name"
-  # Define the path for the systemd service file
-  service_file="/etc/systemd/system/${service_name}.service"
-
-  # Check if a service with the given name already exists
-  if [ -f "$service_file" ]; then
-    echo -e "${RED}❌ Service with this name already exists.${RESET}"
-    echo ""
-    echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
-    read -p ""
-    return
-  fi
-
-  echo -e "${CYAN}🌐 Server Connection Details:${RESET}"
-  echo -e "  (e.g., server.yourdomain.com:8800)"
-  
-  # Validate Server Address
-  local server_addr
-  while true; do
-    echo -e "👉 ${WHITE}Server address and port (e.g., server.yourdomain.com:8800 or 192.168.1.1:8800):${RESET} "
-    read -p "" server_addr_input
-    # Split into host and port for validation
-    local host_part=$(echo "$server_addr_input" | cut -d':' -f1)
-    local port_part=$(echo "$server_addr_input" | cut -d':' -f2)
-
-    if validate_host "$host_part" && validate_port "$port_part"; then
-      server_addr="$server_addr_input"
-      break
-    else
-      print_error "Invalid server address or port format. Please use 'host:port' (e.g., example.com:8800)."
-    fi
-  done
-  echo ""
-
-  echo -e "${CYAN}📡 Tunnel Mode:${RESET}"
-  echo -e "  (tcp/udp/both)"
-  echo -e "👉 ${WHITE}Tunnel mode ? (tcp/udp/both):${RESET} "
-  read -p "" tunnel_mode
-  echo ""
-
-  echo -e "🔑 ${WHITE}Password:${RESET} "
-  read -p "" password
-  echo ""
-
-  echo -e "${CYAN}🔢 Port Mapping Configuration:${RESET}"
-  
-  local port_count
-  while true; do
-    echo -e "👉 ${WHITE}How many ports to tunnel?${RESET} "
-    read -p "" port_count_input
-    if [[ "$port_count_input" =~ ^[0-9]+$ ]] && (( port_count_input >= 0 )); then
-      port_count=$port_count_input
-      break
-    else
-      print_error "Invalid input. Please enter a non-negative number for port count."
-    fi
-  done
-  echo ""
-  
-  mappings=""
-  for ((i=1; i<=port_count; i++)); do
-    local port
-    while true; do
-      echo -e "👉 ${WHITE}Enter Port #$i (1-65535):${RESET} "
-      read -p "" port_input
-      if validate_port "$port_input"; then
-        port="$port_input"
-        break
-      else
-        print_error "Invalid port number. Please enter a number between 1 and 65535."
-      fi
-    done
-    mapping="OUT^0.0.0.0:$port^$port"
-    [ -z "$mappings" ] && mappings="$mapping" || mappings="$mappings,$mapping"
-    echo ""
-  done
-
-  # Determine the mapping arguments based on the tunnel_mode
-  mapping_args=""
-  case "$tunnel_mode" in
-    "tcp")
-      mapping_args="--tcp-mappings \"$mappings\""
-      ;;
-    "udp")
-      mapping_args="--udp-mappings \"$mappings\""
-      ;;
-    "both")
-      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
-      ;;
-    *)
-      echo -e "${YELLOW}⚠️ Invalid tunnel mode specified. Using 'both' as default.${RESET}"
-      mapping_args="--tcp-mappings \"$mappings\" --udp-mappings \"$mappings\""
-      ;;
-  esac
-
-  # Create the systemd service file
-  cat <<EOF | sudo tee "$service_file" > /dev/null
-[Unit]
-Description=Direct TrustTunnel Client - $client_name
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=$(pwd)/rstun/rstunc --server-addr "$server_addr" --password "$password" $mapping_args
-Restart=always
-RestartSec=5
-User=$(whoami)
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  echo -e "${CYAN}🔧 Reloading systemd daemon...${RESET}"
-  sudo systemctl daemon-reload
-
-  echo -e "${CYAN}🚀 Enabling and starting Direct Trusttunnel client service...${RESET}"
-  sudo systemctl enable "$service_name" > /dev/null 2>&1
-  sudo systemctl start "$service_name" > /dev/null 2>&1
-
-  print_success "Direct client '$client_name' started as $service_name"
-
-  echo ""
-  echo -e "${YELLOW}Do you want to view the logs for $client_name now? (y/N): ${RESET}"
-  read -p "" view_logs_choice
-  echo ""
-
-  if [[ "$view_logs_choice" =~ ^[Yy]$ ]]; then
-    show_service_logs "$service_name"
-  fi
-
-  echo ""
-  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}"
+  echo -e "${YELLOW}Press Enter to return to previous menu...${RESET}" # Press Enter to return to previous menu...
   read -p ""
 }
 
@@ -2078,7 +1645,7 @@ while true; do
                     fi
                   done
                 fi
-              ;;
+                ;;
               5) # New case for deleting cron job in client menu
                 delete_cron_job_action
               ;;
@@ -2106,7 +1673,7 @@ while true; do
           read -p ""
           ;;
       esac
-    ;;
+      ;;
     3)
       # Direct tunnel menu (copy of reverse tunnel with modified names)
       clear
