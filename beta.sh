@@ -569,7 +569,7 @@ add_new_server_action() {
     return # Use return instead of continue in a function
   fi
 
-  # لیست کردن certificate های موجود
+  # لیست کردن certificate های موجود (فقط دایرکتوری‌هایی که نامشان شبیه دامنه است)
   certs_dir="/etc/letsencrypt/live"
   if [ ! -d "$certs_dir" ]; then
     echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
@@ -578,7 +578,14 @@ add_new_server_action() {
     return
   fi
 
-  certs=("$certs_dir"/*)
+  certs=()
+  for entry in "$certs_dir"/*; do
+    name=$(basename "$entry")
+    # فقط دایرکتوری‌هایی که نامشان شبیه دامنه است (حداقل یک نقطه داشته باشد)
+    if [ -d "$entry" ] && [[ "$name" == *.* ]]; then
+      certs+=("$entry")
+    fi
+  done
   if [ ${#certs[@]} -eq 0 ]; then
     echo -e "${RED}❌ No certificates found in $certs_dir.${RESET}"
     echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
@@ -945,7 +952,7 @@ add_new_direct_server_action() {
     return # Use return instead of continue in a function
   fi
 
-  # لیست کردن certificate های موجود
+  # لیست کردن certificate های موجود (فقط دایرکتوری‌هایی که نامشان شبیه دامنه است)
   certs_dir="/etc/letsencrypt/live"
   if [ ! -d "$certs_dir" ]; then
     echo -e "${RED}❌ No certificates directory found at $certs_dir.${RESET}"
@@ -954,7 +961,14 @@ add_new_direct_server_action() {
     return
   fi
 
-  certs=("$certs_dir"/*)
+  certs=()
+  for entry in "$certs_dir"/*; do
+    name=$(basename "$entry")
+    # فقط دایرکتوری‌هایی که نامشان شبیه دامنه است (حداقل یک نقطه داشته باشد)
+    if [ -d "$entry" ] && [[ "$name" == *.* ]]; then
+      certs+=("$entry")
+    fi
+  done
   if [ ${#certs[@]} -eq 0 ]; then
     echo -e "${RED}❌ No certificates found in $certs_dir.${RESET}"
     echo -e "${YELLOW}Press Enter to return to main menu...${RESET}"
