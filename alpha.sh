@@ -1458,7 +1458,7 @@ while true; do
   draw_green_line
   # Menu
   echo "Select an option:" # Select an option:
-  echo -e "${MAGENTA}1) Install TrustTunnel${RESET}" # Install TrustTunnel
+  echo -e "${MAGENTA}1) Install Rstun${RESET}" # Install TrustTunnel
   echo -e "${CYAN}2) Rstun reverse tunnel${RESET}" # Rstun reverse tunnel
   echo -e "${CYAN}3) Rstun direct tunnel${RESET}" # Rstun direct tunnel
   echo -e "${YELLOW}4) Certificate management${RESET}" # New: Certificate management
@@ -1471,6 +1471,7 @@ while true; do
       install_trusttunnel_action
       ;;
     2)
+   while true; do 
     clear # Clear screen for a fresh menu display
     echo ""
     draw_line "$GREEN" "=" 40 # Top border
@@ -1737,7 +1738,9 @@ while true; do
           read -p ""
           ;;
       esac
+      done
       ;;
+      
     3)
       # Direct tunnel menu (copy of reverse tunnel with modified names)
       clear
